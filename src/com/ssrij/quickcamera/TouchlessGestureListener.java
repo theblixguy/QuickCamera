@@ -268,7 +268,7 @@ public class TouchlessGestureListener extends Service{
 	 * in acceleration and the camera is invoked only when both up_how_many and down_how_many are 
 	 * equal to 2.
 	 * 
-	 * A gyroscope is more suitable for this task, but consumes more battery at the expense of accuracy. Gyro
+	 * A gyroscope is more suitable for this task, but consumes more battery while giving better accuracy. Gyro
 	 * support is planned for a future version of this app and it's currently work-in-progress. It's quite 
 	 * complicated to implement gyro support because it involves a lot of calculations, but support
 	 * will eventually be added very soon.
