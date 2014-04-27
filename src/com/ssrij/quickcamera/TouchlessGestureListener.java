@@ -29,13 +29,15 @@ public class TouchlessGestureListener extends Service{
 	private static final String TAG = "TouchlessCamera";
 	SensorManager sensorManager;
 	Sensor accelerometerSensor;
+	Sensor linearAccelerometerSensor;
 	Sensor proximitySensor;
 	boolean accelerometerPresent;
+	boolean linearAccelerometerPresent;
 	boolean proximityPresent;
 	boolean in_pocket = false;
 	boolean was_up = true;
 	boolean was_down = false;
-	boolean use_gyro;
+	boolean use_linear_accelerometer;
 	boolean use_proximity;
 	int threshold;
 	int up_how_many;
@@ -64,11 +66,21 @@ public class TouchlessGestureListener extends Service{
 	public void onDestroy() {
 
 		super.onDestroy();
-		Log.i(TAG, "Service destroyted, unregistering accelerometer listener");
-		sensorManager.unregisterListener(AccelerometerEventListener);
+		Log.i(TAG, "Service destroyted, unregistering listeners");
+
+		if (accelerometerPresent == true && !use_linear_accelerometer) {
+			Log.i(TAG, "Unregistering accelerometer listener");
+			sensorManager.unregisterListener(AccelerometerEventListener);
+		}
+
 		if (use_proximity == true && proximityPresent == true) {
 			Log.i(TAG, "Unregistering proximity listener");
 			sensorManager.unregisterListener(ProximityEventListener);
+		}
+
+		if (use_linear_accelerometer == true && linearAccelerometerPresent == true) {
+			Log.i(TAG, "Unregistering linear accelerometer listener");
+			sensorManager.unregisterListener(linearAccelerometerEventListener);
 		}
 	}
 
@@ -87,11 +99,12 @@ public class TouchlessGestureListener extends Service{
 
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
-		use_gyro = settings.getBoolean("use_gyro", false);
-		use_proximity = settings.getBoolean("use_proximity", true);
-		threshold = settings.getInt("threshold", 9);
+		use_proximity = settings.getBoolean("use_proximity", false);
+		use_linear_accelerometer = settings.getBoolean("use_linear_accelerometer", false);
+		threshold = settings.getInt("threshold", 5);
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+
 		List<Sensor> sensorList = sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER);
 		if(sensorList.size() > 0){
 			Log.i(TAG, "Accelerometer sensor detected");
@@ -115,14 +128,36 @@ public class TouchlessGestureListener extends Service{
 			proximityPresent = false;
 		}
 
+		List<Sensor> sensorList2 = sensorManager.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION);
+		if(sensorList2.size() > 0){
+			linearAccelerometerPresent = true;
+			Log.i(TAG, "Linear accelerometer detected");
+			linearAccelerometerSensor = sensorList2.get(0);  
+		}
+		else{
+			Log.w(TAG, "No Linear accelerometer detected");
+			linearAccelerometerPresent = false;
+		} 
+
 		if(accelerometerPresent){
-			Log.i(TAG, "Registering accelerometer listener");
-			sensorManager.registerListener(AccelerometerEventListener, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
+			if (!use_linear_accelerometer) {
+				Log.i(TAG, "Registering accelerometer listener");
+				sensorManager.registerListener(AccelerometerEventListener, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
+			}
 		}
 
-		if (use_proximity && proximityPresent) {
-			Log.i(TAG, "Registering proximity listener");
-			sensorManager.registerListener(ProximityEventListener, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+		if(linearAccelerometerPresent){
+			if (use_linear_accelerometer) {
+				Log.i(TAG, "Registering linear accelerometer listener");
+				sensorManager.registerListener(linearAccelerometerEventListener, linearAccelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
+			}
+		}
+
+		if (proximityPresent) {
+			if (use_proximity) {
+				Log.i(TAG, "Registering proximity listener");
+				sensorManager.registerListener(ProximityEventListener, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+			}
 		}
 
 		Log.i(TAG, "Acquiring partial wakelock for background service");
@@ -261,12 +296,16 @@ public class TouchlessGestureListener extends Service{
 	 * across the X axis in x-y-z space to determine whether the phone is facing the sky or the ground. 
 	 * We use the values to construct our gesture. Usually, a value of > 9 indicates the phone is facing 
 	 * towards the user and a value of > -9 indicates the phone is facing the opposite side. If the user 
-	 * twists the phone twice, the linear acceleration goes from >9 to > -9 four times. We record the values 
-	 * and increment up_how_many everytime the acceleration hits >9 and increment down_how_many everytime 
+	 * twists the phone twice, the linear acceleration goes from > 9 to > -9 four times. We record the values 
+	 * and increment up_how_many everytime the acceleration hits > 9 and increment down_how_many everytime 
 	 * acceleration hits > -9. We also do some conditional checks before incrementing to make sure the device 
 	 * was previously facing the opposite side. launchCamera() is called everytime there is a change
 	 * in acceleration and the camera is invoked only when both up_how_many and down_how_many are 
 	 * equal to 2.
+	 * 
+	 * Some devices have both accelerometer & gyroscope, so we can use the linear accelerometer virtual sensor
+	 * (which uses both sensors simultaneously to give us linear accelerometer data) so that we dont have to perform 
+	 * certain calculations ourselfs to extract linear acceleration data from normal acceleration data.
 	 * 
 	 * A gyroscope is more suitable for this task, but consumes more battery while giving better accuracy. Gyro
 	 * support is planned for a future version of this app and it's currently work-in-progress. It's quite 
@@ -317,35 +356,70 @@ public class TouchlessGestureListener extends Service{
 
 		}};
 
-		/* 
-		 * Proximity sensor is used by this service to prevent the camera from launching when the
-		 * user keeps the phone in his/her pocket. We simply check whether the distance reported by 
-		 * the sensor is equal to the sensor's maximum range to determine whether it's in the pocket
-		 * or not. If the distance is equal then we assume it's not in the pocket and if it's not
-		 * then it's in the pocket, easy. The variable in_pocket is used by launchCamera() to quickly 
-		 * check whether the phone is in the user's pocket or not.
-		 * 
-		 */
+		SensorEventListener linearAccelerometerEventListener = new SensorEventListener(){
 
-		SensorEventListener ProximityEventListener = new SensorEventListener(){
+			@SuppressWarnings("unused")
+			@Override
+			public void onSensorChanged(SensorEvent arg0) {
+				Log.i(TAG, "Linear acceleration detected, computing values");
+				float x_value = arg0.values[0];
+
+				Log.i(TAG, "Linear Acceleration: " + x_value);
+
+				if (x_value > threshold){
+					if (was_up == false && was_down == true) {
+						Log.i(TAG, "Turn up");
+						up_how_many = up_how_many + 1;
+						was_up = true;
+						was_down = false;
+					}
+				}
+				else if (x_value > -threshold) {
+					if (was_down == false && was_up == true) {
+						Log.i(TAG, "Turn down");
+						down_how_many = down_how_many + 1;
+						was_down = true;
+						was_up = false;
+					}
+				}
+				launchCamera();
+			}
 
 			@Override
 			public void onAccuracyChanged(Sensor arg0, int arg1) {
 				// We don't require this interrupt
 
-			}
-
-			@Override
-			public void onSensorChanged(SensorEvent arg0) {
-				float distance = arg0.values[0];
-				if (distance == arg0.sensor.getMaximumRange()) {
-					Log.i(TAG, "Phone is outside pocket");
-					in_pocket = false;
-				}
-				else {
-					Log.i(TAG, "Phone is in pocket");
-					in_pocket = true;
-				}
 			}};
+
+			/* 
+			 * Proximity sensor is used by this service to prevent the camera from launching when the
+			 * user keeps the phone in his/her pocket. We simply check whether the distance reported by 
+			 * the sensor is equal to the sensor's maximum range to determine whether it's in the pocket
+			 * or not. If the distance is equal then we assume it's not in the pocket and if it's not
+			 * then it's in the pocket, easy. The variable in_pocket is used by launchCamera() to quickly 
+			 * check whether the phone is in the user's pocket or not.
+			 * 
+			 */
+
+			SensorEventListener ProximityEventListener = new SensorEventListener(){
+
+				@Override
+				public void onAccuracyChanged(Sensor arg0, int arg1) {
+					// We don't require this interrupt
+
+				}
+
+				@Override
+				public void onSensorChanged(SensorEvent arg0) {
+					float distance = arg0.values[0];
+					if (distance == arg0.sensor.getMaximumRange()) {
+						Log.i(TAG, "Phone is outside pocket");
+						in_pocket = false;
+					}
+					else {
+						Log.i(TAG, "Phone is in pocket");
+						in_pocket = true;
+					}
+				}};
 
 }

@@ -2,6 +2,6 @@
 <resources>
     <string-array name="spinner_array">
         <item>Accelerometer</item>
-        <item>Gyroscope</item>
+        <item>Linear Accelerometer</item>
     </string-array>
 </resources>

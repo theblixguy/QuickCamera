@@ -19,9 +19,9 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 	/* Variables we require */
 	
 	private static final String TAG = "TouchlessCamera";
-	boolean use_gyro = false;
+	boolean use_linear_accelerometer;
 	boolean use_proximity = false;
-	int threshold = 9;
+	int threshold = 5;
 	
 	/* Entry point of our activity. Nothing too fancy, just read user preferences and update the fields */
 
@@ -41,9 +41,9 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
-		use_gyro = settings.getBoolean("use_gyro", false);
+		use_linear_accelerometer = settings.getBoolean("use_linear_accelerometer", false);
 		use_proximity = settings.getBoolean("use_proximity", false);
-		threshold = settings.getInt("threshold", 9);
+		threshold = settings.getInt("threshold", 5);
 
 		if (use_proximity == true) {
 			proximitySwitch.setChecked(true);
@@ -54,7 +54,7 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 		ed.setText(Integer.toString(threshold));
 
-		if (use_gyro == false) {
+		if (use_linear_accelerometer == false) {
 			spinner1.setSelection(0);
 		}
 		else {
@@ -73,7 +73,6 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 				}
 			}
 		});
-
 	}
 	
 	/* Event handler for spinner */
@@ -83,12 +82,12 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 		switch (pos) {
 		case 0:
-			use_gyro = false;
-			Log.i(TAG, "Use gyroscope disabled");
+			use_linear_accelerometer = false;
+			Log.i(TAG, "Use linear accelerometer disabled");
 			break;
 		case 1:
-			use_gyro = true;
-			Log.i(TAG, "Use gyrsocope enabled");
+			use_linear_accelerometer = true;
+			Log.i(TAG, "Use linear accelerometer enabled");
 			break;
 		}
 	}
@@ -107,7 +106,7 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 		threshold = Integer.parseInt(ed1.getText().toString());
 		SharedPreferences app_settings = getSharedPreferences("app_prefs", 0);
 		SharedPreferences.Editor settings_editor = app_settings.edit();
-		settings_editor.putBoolean("usegyro", use_gyro);
+		settings_editor.putBoolean("use_linear_accelerometer", use_linear_accelerometer);
 		settings_editor.putBoolean("use_proximity", use_proximity);
 		settings_editor.putInt("threshold", threshold);
 		Log.i(TAG, "Saving debug prefs");

@@ -14,9 +14,6 @@ public class MainActivity extends Activity {
 	
 	private static final String TAG = "TouchlessCamera";
 	int voltimes = 0;
-	boolean use_gyro = false;
-	boolean use_proximity = false;
-	int threshold = 9;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
