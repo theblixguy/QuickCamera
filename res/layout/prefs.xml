@@ -43,7 +43,7 @@
         android:layout_below="@+id/spinner1"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="25dp"
-        android:text="X-axis threshold"
+        android:text="X-axis threshold (0-10)"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="@android:color/holo_blue_dark" />
 
@@ -67,7 +67,7 @@
         android:layout_marginTop="11dp"
         android:text="Prevent accidental camera launch in pocket"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="@android:color/holo_orange_light"
+        android:textColor="#000000"
         android:textSize="15sp"
         android:textStyle="italic" />
 

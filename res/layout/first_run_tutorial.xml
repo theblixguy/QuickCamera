@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:background="@drawable/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="25dp"
+        android:fontFamily="sans-serif-thin"
+        android:text="QuickCamera"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="#FFFFFF"
+        android:textSize="40sp" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/webView1"
+        android:layout_alignRight="@+id/webView1"
+        android:layout_below="@+id/textView1"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:text="QuickCamera enables you to quickly launch the camera from anywhere by performing a simple gesture"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF"
+        android:textSize="17sp" />
+
+    <Button
+        android:id="@+id/button1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/textView1"
+        android:layout_alignRight="@+id/textView1"
+        android:layout_below="@+id/webView1"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/btn_flat_red"
+        android:fontFamily="sans-serif-condensed"
+        android:onClick="closeTutorial"
+        android:padding="10dp"
+        android:paddingBottom="13dp"
+        android:text="Ok, got it!"
+        android:textColor="#ffffff"
+        android:textSize="20sp" />
+
+    <WebView
+        android:id="@+id/webView1"
+        android:layout_width="320dp"
+        android:layout_height="180dp"
+        android:layout_below="@+id/textView2"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="21dp"
+        android:scrollbars="none" />
+
+</RelativeLayout>

@@ -15,18 +15,22 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.util.Log;
 
 @SuppressLint("Wakelock") @SuppressWarnings("deprecation")
-public class TouchlessGestureListener extends Service{
+public class TouchlessGestureListener extends Service {
 
 	/* Variables we require */
 
 	private static final String TAG = "TouchlessCamera";
+	WakeLock wakeLock;
+	PowerManager mgr;
 	SensorManager sensorManager;
 	Sensor accelerometerSensor;
 	Sensor linearAccelerometerSensor;
@@ -68,17 +72,17 @@ public class TouchlessGestureListener extends Service{
 		super.onDestroy();
 		Log.i(TAG, "Service destroyted, unregistering listeners");
 
-		if (accelerometerPresent == true && !use_linear_accelerometer) {
+		if (accelerometerPresent && !use_linear_accelerometer) {
 			Log.i(TAG, "Unregistering accelerometer listener");
 			sensorManager.unregisterListener(AccelerometerEventListener);
 		}
 
-		if (use_proximity == true && proximityPresent == true) {
+		if (use_proximity&& proximityPresent) {
 			Log.i(TAG, "Unregistering proximity listener");
 			sensorManager.unregisterListener(ProximityEventListener);
 		}
 
-		if (use_linear_accelerometer == true && linearAccelerometerPresent == true) {
+		if (use_linear_accelerometer && linearAccelerometerPresent) {
 			Log.i(TAG, "Unregistering linear accelerometer listener");
 			sensorManager.unregisterListener(linearAccelerometerEventListener);
 		}
@@ -158,11 +162,12 @@ public class TouchlessGestureListener extends Service{
 				Log.i(TAG, "Registering proximity listener");
 				sensorManager.registerListener(ProximityEventListener, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
 			}
+
 		}
 
 		Log.i(TAG, "Acquiring partial wakelock for background service");
-		PowerManager mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
-		WakeLock wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
+		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
+		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
 		wakeLock.acquire();
 
 	}
@@ -204,6 +209,7 @@ public class TouchlessGestureListener extends Service{
 					boolean is_camera_already_running = isCameraRunning();
 					if (null != it && is_camera_already_running == false) {
 						Log.i(TAG, "Starting camera app");
+						vibratePhone(150);
 						this.startActivity(it);
 					}
 				}
@@ -237,6 +243,13 @@ public class TouchlessGestureListener extends Service{
 		was_down = false;
 	}
 
+	/* Function to vibrate the phone */
+
+	public void vibratePhone(int seconds) {
+		Vibrator vibrator = (Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
+		vibrator.vibrate(seconds);
+	}
+
 	/* 
 	 * Function to check whether the camera is running or not in order to prevent stupid users
 	 * from crashing or hanging the system by performing the gesture over and over again, after the
@@ -261,6 +274,20 @@ public class TouchlessGestureListener extends Service{
 		}
 		Log.i(TAG, "Verification succeeded, camera app is not running");
 		return false;
+	}
+
+	/* Function to check whether the user is in call or not, in order to prevent the camera from
+	 * accidentally launching during a call.
+	 */
+
+	public boolean isUserInCall(){
+		AudioManager manager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+		if (manager.getMode()==AudioManager.MODE_IN_CALL){
+			return true;
+		}
+		else{
+			return false;
+		}
 	}
 
 	/* 
@@ -294,11 +321,11 @@ public class TouchlessGestureListener extends Service{
 	 * linear acceleration data, we have to isolate the gravity from the values. A simple low-pass
 	 * filter can help, so we use that. Once we have the optimized data, we check the linear acceleration 
 	 * across the X axis in x-y-z space to determine whether the phone is facing the sky or the ground. 
-	 * We use the values to construct our gesture. Usually, a value of > 9 indicates the phone is facing 
-	 * towards the user and a value of > -9 indicates the phone is facing the opposite side. If the user 
-	 * twists the phone twice, the linear acceleration goes from > 9 to > -9 four times. We record the values 
-	 * and increment up_how_many everytime the acceleration hits > 9 and increment down_how_many everytime 
-	 * acceleration hits > -9. We also do some conditional checks before incrementing to make sure the device 
+	 * We use the values to construct our gesture. Usually, a value of > 5 indicates the phone is facing 
+	 * towards the user and a value of > -5 indicates the phone is facing the opposite side. If the user 
+	 * twists the phone twice, the linear acceleration goes from > 5 to > -5 four times. We record the values 
+	 * and increment up_how_many everytime the acceleration hits > 5 and increment down_how_many everytime 
+	 * acceleration hits > -5. We also do some conditional checks before incrementing to make sure the device 
 	 * was previously facing the opposite side. launchCamera() is called everytime there is a change
 	 * in acceleration and the camera is invoked only when both up_how_many and down_how_many are 
 	 * equal to 2.
@@ -316,7 +343,6 @@ public class TouchlessGestureListener extends Service{
 
 	SensorEventListener AccelerometerEventListener = new SensorEventListener(){
 
-		@SuppressWarnings("unused")
 		@Override
 		public void onSensorChanged(SensorEvent arg0) {
 			Log.i(TAG, "Acceleration detected, computing values");
@@ -358,7 +384,6 @@ public class TouchlessGestureListener extends Service{
 
 		SensorEventListener linearAccelerometerEventListener = new SensorEventListener(){
 
-			@SuppressWarnings("unused")
 			@Override
 			public void onSensorChanged(SensorEvent arg0) {
 				Log.i(TAG, "Linear acceleration detected, computing values");

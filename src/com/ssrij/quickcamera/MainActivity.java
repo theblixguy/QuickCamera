@@ -2,23 +2,64 @@ package com.ssrij.quickcamera;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-	
+
 	/* Variables we require */
-	
+
 	private static final String TAG = "TouchlessCamera";
 	int voltimes = 0;
+	boolean first_run;
 	
+	/* Entry point of our activity */
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+
+		SharedPreferences settings;
+		settings = getSharedPreferences("app_prefs", 0);
+		first_run = settings.getBoolean("first_run", true);
+
+		if (first_run) {
+			startActivity(new Intent(this, TutorialActivity.class));
+		}
+	}
+	
+	/* You know what this does */
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+
+		getMenuInflater().inflate(R.menu.menu, menu);
+		return true;
+	}
+	
+	/* Open the debug settings */
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+
+		switch (item.getItemId()) {
+
+		case R.id.action_settings:
+			startActivity(new Intent(this, DebugPrefActivity.class));
+			Log.i(TAG, "Debug prefs accessed");
+			Toast.makeText(getApplicationContext(), "For debugging only", Toast.LENGTH_SHORT).show(); 
+			return true;
+
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+
 	}
 	
 	/* Start the gesture listener service */
@@ -28,32 +69,13 @@ public class MainActivity extends Activity {
 		Log.i(TAG, "Service started");
 		Toast.makeText(getApplicationContext(), "Service started! You can now close this app", Toast.LENGTH_SHORT).show();
 	}
-	
+
 	/* Stop the gesture listener service */
 
 	public void StopGestureService(View v) {
 		stopService(new Intent(this, TouchlessGestureListener.class));
 		Log.i(TAG, "Service stopped");
 		Toast.makeText(getApplicationContext(), "Service stopped! You can now close this app", Toast.LENGTH_SHORT).show();
-	}
-	
-	/* Open the secret debugging options page if the user presses the volume down key thrice */
-	
-	@Override
-	public boolean onKeyDown(int keyCode, KeyEvent event) {
-
-		if ((keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)){ 
-			voltimes = voltimes + 1; 
-		}
-
-		if (voltimes == 3) { 
-			startActivity(new Intent(this, DebugPrefActivity.class));
-			Log.i(TAG, "Debug prefs accessed");
-			Toast.makeText(getApplicationContext(), "For debugging only", Toast.LENGTH_SHORT).show(); 
-			voltimes = 0;
-		}
-		return true;
-
 	}
 
 
