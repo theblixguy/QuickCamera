@@ -77,7 +77,7 @@
         android:layout_marginRight="11dp"
         android:layout_marginTop="10dp"
         android:fontFamily="sans-serif-thin"
-        android:text="Alpha 3"
+        android:text="Alpha 4"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:textColor="#FFFFFF"
         android:textStyle="italic" />

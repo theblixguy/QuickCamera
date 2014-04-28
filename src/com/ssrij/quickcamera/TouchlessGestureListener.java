@@ -5,11 +5,14 @@ import java.util.List;
 import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
 import android.app.KeyguardManager.KeyguardLock;
+import android.app.Notification;
 import android.app.Service;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -21,9 +24,10 @@ import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.Vibrator;
 import android.provider.MediaStore;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-@SuppressLint("Wakelock") @SuppressWarnings("deprecation")
+@SuppressLint({ "Wakelock", "NewApi" }) @SuppressWarnings("deprecation")
 public class TouchlessGestureListener extends Service {
 
 	/* Variables we require */
@@ -71,21 +75,8 @@ public class TouchlessGestureListener extends Service {
 
 		super.onDestroy();
 		Log.i(TAG, "Service destroyted, unregistering listeners");
-
-		if (accelerometerPresent && !use_linear_accelerometer) {
-			Log.i(TAG, "Unregistering accelerometer listener");
-			sensorManager.unregisterListener(AccelerometerEventListener);
-		}
-
-		if (use_proximity&& proximityPresent) {
-			Log.i(TAG, "Unregistering proximity listener");
-			sensorManager.unregisterListener(ProximityEventListener);
-		}
-
-		if (use_linear_accelerometer && linearAccelerometerPresent) {
-			Log.i(TAG, "Unregistering linear accelerometer listener");
-			sensorManager.unregisterListener(linearAccelerometerEventListener);
-		}
+		unregisterAccelerometerSensor();
+		unregisterProximitySensor();
 	}
 
 	/* Entry point of our Gesture service. Before we start detecting the gesture, there are some important
@@ -109,6 +100,34 @@ public class TouchlessGestureListener extends Service {
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 
+		registerAccelerometerSensor();
+		registerProximitySensor();
+
+		Log.i(TAG, "Acquiring partial wakelock for background service");
+		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
+		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
+		wakeLock.acquire();
+
+		Notification serviceNotification = new Notification();
+		NotificationCompat.Builder nBuilder = new NotificationCompat.Builder(this);
+		Bitmap icon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);
+		nBuilder.setLargeIcon(icon);
+		nBuilder.setContentTitle("QuickCamera");
+		nBuilder.setContentText("Running in background");
+		nBuilder.setOngoing(true);
+		serviceNotification.tickerView = null;
+		nBuilder.setPriority(Notification.PRIORITY_MIN);
+		serviceNotification = nBuilder.build();
+		startForeground(1337, serviceNotification);
+
+	}
+	
+	/* Function to register accelerometer or linear accelerometer listeners. If no accelerometer is
+	 * found then the service stops itself. 
+	 */
+
+	public void registerAccelerometerSensor() {
+
 		List<Sensor> sensorList = sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER);
 		if(sensorList.size() > 0){
 			Log.i(TAG, "Accelerometer sensor detected");
@@ -121,17 +140,6 @@ public class TouchlessGestureListener extends Service {
 			this.stopSelf();
 		}
 
-		List<Sensor> sensorList1 = sensorManager.getSensorList(Sensor.TYPE_PROXIMITY);
-		if(sensorList1.size() > 0){
-			proximityPresent = true;
-			Log.i(TAG, "Proximity sensor detected");
-			proximitySensor = sensorList1.get(0);  
-		}
-		else{
-			Log.w(TAG, "No proximity sensor detected");
-			proximityPresent = false;
-		}
-
 		List<Sensor> sensorList2 = sensorManager.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION);
 		if(sensorList2.size() > 0){
 			linearAccelerometerPresent = true;
@@ -141,7 +149,7 @@ public class TouchlessGestureListener extends Service {
 		else{
 			Log.w(TAG, "No Linear accelerometer detected");
 			linearAccelerometerPresent = false;
-		} 
+		}
 
 		if(accelerometerPresent){
 			if (!use_linear_accelerometer) {
@@ -156,20 +164,54 @@ public class TouchlessGestureListener extends Service {
 				sensorManager.registerListener(linearAccelerometerEventListener, linearAccelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
 			}
 		}
+	}
+	
+	/* Function to register proximity sensor listener */
+
+	public void registerProximitySensor() {
+
+		List<Sensor> sensorList1 = sensorManager.getSensorList(Sensor.TYPE_PROXIMITY);
+		if(sensorList1.size() > 0){
+			proximityPresent = true;
+			Log.i(TAG, "Proximity sensor detected");
+			proximitySensor = sensorList1.get(0);  
+		}
+		else{
+			Log.w(TAG, "No proximity sensor detected");
+			proximityPresent = false;
+		}
 
 		if (proximityPresent) {
 			if (use_proximity) {
 				Log.i(TAG, "Registering proximity listener");
 				sensorManager.registerListener(ProximityEventListener, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
 			}
+		}
+	}
+	
+	/* Function to unregister accelerometer or linear accelerometer sensor listener */
 
+	public void unregisterAccelerometerSensor() {
+
+		if (accelerometerPresent && !use_linear_accelerometer) {
+			Log.i(TAG, "Unregistering accelerometer listener");
+			sensorManager.unregisterListener(AccelerometerEventListener);
 		}
 
-		Log.i(TAG, "Acquiring partial wakelock for background service");
-		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
-		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
-		wakeLock.acquire();
+		if (use_linear_accelerometer && linearAccelerometerPresent) {
+			Log.i(TAG, "Unregistering linear accelerometer listener");
+			sensorManager.unregisterListener(linearAccelerometerEventListener);
+		}
+	}
+	
+	/* Function to unregister proximity sensor listener */
 
+	public void unregisterProximitySensor() {
+
+		if (use_proximity&& proximityPresent) {
+			Log.i(TAG, "Unregistering proximity listener");
+			sensorManager.unregisterListener(ProximityEventListener);
+		}
 	}
 
 	/* This function validates gesture requirements and launches camera if the requirements are met:
@@ -205,9 +247,10 @@ public class TouchlessGestureListener extends Service {
 				try
 				{
 					Intent it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-					it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 					boolean is_camera_already_running = isCameraRunning();
-					if (null != it && is_camera_already_running == false) {
+					boolean is_user_in_call = isUserInCall();
+					if (null != it && is_camera_already_running == false && is_user_in_call == false) {
 						Log.i(TAG, "Starting camera app");
 						vibratePhone(150);
 						this.startActivity(it);
@@ -280,7 +323,7 @@ public class TouchlessGestureListener extends Service {
 	 * accidentally launching during a call.
 	 */
 
-	public boolean isUserInCall(){
+	public boolean isUserInCall() {
 		AudioManager manager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
 		if (manager.getMode()==AudioManager.MODE_IN_CALL){
 			return true;
@@ -320,15 +363,14 @@ public class TouchlessGestureListener extends Service {
 	 * since the force of gravity has an effect on the values and in order to get the actual, aka
 	 * linear acceleration data, we have to isolate the gravity from the values. A simple low-pass
 	 * filter can help, so we use that. Once we have the optimized data, we check the linear acceleration 
-	 * across the X axis in x-y-z space to determine whether the phone is facing the sky or the ground. 
-	 * We use the values to construct our gesture. Usually, a value of > 5 indicates the phone is facing 
-	 * towards the user and a value of > -5 indicates the phone is facing the opposite side. If the user 
-	 * twists the phone twice, the linear acceleration goes from > 5 to > -5 four times. We record the values 
-	 * and increment up_how_many everytime the acceleration hits > 5 and increment down_how_many everytime 
-	 * acceleration hits > -5. We also do some conditional checks before incrementing to make sure the device 
-	 * was previously facing the opposite side. launchCamera() is called everytime there is a change
-	 * in acceleration and the camera is invoked only when both up_how_many and down_how_many are 
-	 * equal to 2.
+	 * across the X and Y axis in x-y-z space and we use the values to construct our gesture. Usually, a 
+	 * value of > 5 indicates the phone is facing towards the user and a value of > -5 indicates the phone 
+	 * is facing the opposite side. If the user  twists the phone twice, the linear acceleration goes from 
+	 * > 5 to > -5 four times. We record the values and increment up_how_many everytime the acceleration hits 
+	 * > 5 and increment down_how_many everytime acceleration hits > -5. We also do some conditional checks 
+	 * before incrementing to make sure the device was previously facing the opposite side. launchCamera() is 
+	 * called everytime there is a change in acceleration and the camera is invoked only when both up_how_many 
+	 * and down_how_many are equal to 2.
 	 * 
 	 * Some devices have both accelerometer & gyroscope, so we can use the linear accelerometer virtual sensor
 	 * (which uses both sensors simultaneously to give us linear accelerometer data) so that we dont have to perform 
@@ -347,17 +389,22 @@ public class TouchlessGestureListener extends Service {
 		public void onSensorChanged(SensorEvent arg0) {
 			Log.i(TAG, "Acceleration detected, computing values");
 			float constant = 0.8f;
+			float y_value = arg0.values[1];
 			float x_value = arg0.values[0];
 			float linear_x_value;
+			float linear_y_value;
 			float gravity = 0;
 			gravity = constant * gravity + (1 - constant) * arg0.values[0];
+			linear_y_value = y_value - gravity;
 			linear_x_value = x_value - gravity;
 
-			Log.i(TAG, "Acceleration: " + x_value);
-			Log.i(TAG, "Gravity: " + gravity);
-			Log.i(TAG, "Linear Acceleration: " + linear_x_value);
+			Log.i(TAG, "Acceleration (X): " + x_value);
+			Log.i(TAG, "Acceleration (Y): " + y_value);
+			Log.i(TAG, "Gravity (X): " + gravity);
+			Log.i(TAG, "Linear Acceleration (X): " + linear_x_value);
+			Log.i(TAG, "Linear Acceleration (Y): " + linear_y_value);
 
-			if (linear_x_value > threshold){
+			if (linear_x_value > threshold && linear_y_value > 2){
 				if (was_up == false && was_down == true) {
 					Log.i(TAG, "Turn up");
 					up_how_many = up_how_many + 1;
@@ -365,7 +412,7 @@ public class TouchlessGestureListener extends Service {
 					was_down = false;
 				}
 			}
-			else if (linear_x_value > -threshold) {
+			else if (linear_x_value > -threshold && linear_y_value > 2) {
 				if (was_down == false && was_up == true) {
 					Log.i(TAG, "Turn down");
 					down_how_many = down_how_many + 1;
@@ -388,10 +435,11 @@ public class TouchlessGestureListener extends Service {
 			public void onSensorChanged(SensorEvent arg0) {
 				Log.i(TAG, "Linear acceleration detected, computing values");
 				float x_value = arg0.values[0];
+				float y_value = arg0.values[0];
 
 				Log.i(TAG, "Linear Acceleration: " + x_value);
 
-				if (x_value > threshold){
+				if (x_value > threshold && y_value > 2){
 					if (was_up == false && was_down == true) {
 						Log.i(TAG, "Turn up");
 						up_how_many = up_how_many + 1;
@@ -399,7 +447,7 @@ public class TouchlessGestureListener extends Service {
 						was_down = false;
 					}
 				}
-				else if (x_value > -threshold) {
+				else if (x_value > -threshold && y_value > 2) {
 					if (was_down == false && was_up == true) {
 						Log.i(TAG, "Turn down");
 						down_how_many = down_how_many + 1;
@@ -418,11 +466,11 @@ public class TouchlessGestureListener extends Service {
 
 			/* 
 			 * Proximity sensor is used by this service to prevent the camera from launching when the
-			 * user keeps the phone in his/her pocket. We simply check whether the distance reported by 
-			 * the sensor is equal to the sensor's maximum range to determine whether it's in the pocket
-			 * or not. If the distance is equal then we assume it's not in the pocket and if it's not
-			 * then it's in the pocket, easy. The variable in_pocket is used by launchCamera() to quickly 
-			 * check whether the phone is in the user's pocket or not.
+			 * user keeps the phone in his/her pocket and prevent battery drain due to accelerometer. 
+			 * We simply check whether the distance reported by the sensor is equal to the sensor's maximum 
+			 * range to determine whether it's in the pocket or not. If the distance is equal then we assume 
+			 * it's not in the pocket and if it's not then it's in the pocket, easy. The variable in_pocket is 
+			 * used by launchCamera() to quickly check whether the phone is in the user's pocket or not.
 			 * 
 			 */
 
@@ -440,10 +488,12 @@ public class TouchlessGestureListener extends Service {
 					if (distance == arg0.sensor.getMaximumRange()) {
 						Log.i(TAG, "Phone is outside pocket");
 						in_pocket = false;
+						registerAccelerometerSensor();
 					}
 					else {
 						Log.i(TAG, "Phone is in pocket");
 						in_pocket = true;
+						unregisterAccelerometerSensor();
 					}
 				}};
 

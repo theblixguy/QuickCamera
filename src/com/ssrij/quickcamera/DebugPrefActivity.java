@@ -15,14 +15,14 @@ import android.widget.Spinner;
 import android.widget.Switch;
 
 public class DebugPrefActivity extends Activity implements OnItemSelectedListener {
-	
+
 	/* Variables we require */
-	
+
 	private static final String TAG = "TouchlessCamera";
 	boolean use_linear_accelerometer;
 	boolean use_proximity = false;
 	int threshold = 5;
-	
+
 	/* Entry point of our activity. Nothing too fancy, just read user preferences and update the fields */
 
 	@Override
@@ -74,7 +74,7 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 			}
 		});
 	}
-	
+
 	/* Event handler for spinner */
 
 	public void onItemSelected(AdapterView<?> parent, View view, 
@@ -91,14 +91,14 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 			break;
 		}
 	}
-	
+
 	/* Event handler we don't need but still have to keep its code */
 
 	@Override
 	public void onNothingSelected(AdapterView<?> arg0) {
 
 	}
-	
+
 	/* Function to save user preferences*/
 
 	public void SaveSettings (View v) {

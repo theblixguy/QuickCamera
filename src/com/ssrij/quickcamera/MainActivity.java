@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -32,6 +33,20 @@ public class MainActivity extends Activity {
 		if (first_run) {
 			startActivity(new Intent(this, TutorialActivity.class));
 		}
+	}
+	
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) 
+	{
+	    switch(keyCode)
+	    {
+	        case KeyEvent.KEYCODE_BACK:
+
+	            moveTaskToBack(true);
+
+	            return true;
+	    }
+	    return false;
 	}
 	
 	/* You know what this does */
