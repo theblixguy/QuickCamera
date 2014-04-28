@@ -4,15 +4,11 @@ import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
-import android.app.KeyguardManager.KeyguardLock;
-import android.app.Notification;
 import android.app.Service;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -24,7 +20,6 @@ import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.Vibrator;
 import android.provider.MediaStore;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 @SuppressLint({ "Wakelock", "NewApi" }) @SuppressWarnings("deprecation")
@@ -108,20 +103,8 @@ public class TouchlessGestureListener extends Service {
 		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
 		wakeLock.acquire();
 
-		Notification serviceNotification = new Notification();
-		NotificationCompat.Builder nBuilder = new NotificationCompat.Builder(this);
-		Bitmap icon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);
-		nBuilder.setLargeIcon(icon);
-		nBuilder.setContentTitle("QuickCamera");
-		nBuilder.setContentText("Running in background");
-		nBuilder.setOngoing(true);
-		serviceNotification.tickerView = null;
-		nBuilder.setPriority(Notification.PRIORITY_MIN);
-		serviceNotification = nBuilder.build();
-		startForeground(1337, serviceNotification);
-
 	}
-	
+
 	/* Function to register accelerometer or linear accelerometer listeners. If no accelerometer is
 	 * found then the service stops itself. 
 	 */
@@ -165,7 +148,7 @@ public class TouchlessGestureListener extends Service {
 			}
 		}
 	}
-	
+
 	/* Function to register proximity sensor listener */
 
 	public void registerProximitySensor() {
@@ -188,7 +171,7 @@ public class TouchlessGestureListener extends Service {
 			}
 		}
 	}
-	
+
 	/* Function to unregister accelerometer or linear accelerometer sensor listener */
 
 	public void unregisterAccelerometerSensor() {
@@ -203,7 +186,7 @@ public class TouchlessGestureListener extends Service {
 			sensorManager.unregisterListener(linearAccelerometerEventListener);
 		}
 	}
-	
+
 	/* Function to unregister proximity sensor listener */
 
 	public void unregisterProximitySensor() {
@@ -218,6 +201,10 @@ public class TouchlessGestureListener extends Service {
 	 * 
 	 * 1> Checks whether the phone is in the user's pocket or not, function fails if true.
 	 * 2> Checks whether the gesture has been properly constructed or not, function fails if false.
+	 * 
+	 * There are further checks too: 
+	 * 1> Checks whether the user is in a call or not
+	 * 2> Checks whether phone is locked or unlocked (incase it's locked it launches a secure version of the camera)
 	 * 
 	 * It also turns the screen on, in case it's off. If all requirements are met then the camera app 
 	 * is launched and the state of gesture variables are reset, else nothing happens.
@@ -236,6 +223,7 @@ public class TouchlessGestureListener extends Service {
 
 				Log.i(TAG, "Veryfing if screen is already on or not");
 				PowerManager pwrmgr = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+				KeyguardManager kgMgr = (KeyguardManager)this.getSystemService(Context.KEYGUARD_SERVICE);
 				boolean isScreenOn = pwrmgr.isScreenOn();
 
 				if (isScreenOn == false) {
@@ -247,13 +235,26 @@ public class TouchlessGestureListener extends Service {
 				try
 				{
 					Intent it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+					Intent secure_it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE);
 					it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+					secure_it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 					boolean is_camera_already_running = isCameraRunning();
 					boolean is_user_in_call = isUserInCall();
-					if (null != it && is_camera_already_running == false && is_user_in_call == false) {
-						Log.i(TAG, "Starting camera app");
-						vibratePhone(150);
-						this.startActivity(it);
+					boolean lockscreen = kgMgr.inKeyguardRestrictedInputMode();
+
+					if (is_camera_already_running == false && is_user_in_call == false && lockscreen == false) {
+						if (null != it) {
+							Log.i(TAG, "Starting camera app");
+							vibratePhone(150);
+							this.startActivity(it);
+						}
+					}
+					else if (is_camera_already_running == false && is_user_in_call == false && lockscreen == true) {
+						if (null != secure_it) {
+							Log.i(TAG, "Starting camera app in secure mode");
+							vibratePhone(150);
+							this.startActivity(secure_it);
+						}
 					}
 				}
 
@@ -337,9 +338,6 @@ public class TouchlessGestureListener extends Service {
 	 * Function to turn on the display of the device. Simply launching camera when the phone is 
 	 * turned off won't turn on the screen with it in most cases, so we have to manually do it. 
 	 * Since there is no official method to turn on the display, we have to rely on wake locks. 
-	 * We release this wakelock after 5 seconds, in order to reduce battery consumption. There is 
-	 * also a possibility that the camera app is being launched from the lockscreen so we disable 
-	 * keyguard as well, although disabling has no effect on protected devices.
 	 * 
 	 */
 
@@ -351,11 +349,6 @@ public class TouchlessGestureListener extends Service {
 				PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK
 				| PowerManager.ACQUIRE_CAUSES_WAKEUP, "TouchlessCameraWakeLock");
 		wl.acquire(5000);
-
-		Log.i(TAG, "Disabling keyguard");
-		KeyguardManager keyguardManager = (KeyguardManager) this.getSystemService(Context.KEYGUARD_SERVICE);
-		KeyguardLock lock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
-		lock.disableKeyguard();
 	}
 
 	/* 
@@ -374,7 +367,7 @@ public class TouchlessGestureListener extends Service {
 	 * 
 	 * Some devices have both accelerometer & gyroscope, so we can use the linear accelerometer virtual sensor
 	 * (which uses both sensors simultaneously to give us linear accelerometer data) so that we dont have to perform 
-	 * certain calculations ourselfs to extract linear acceleration data from normal acceleration data.
+	 * certain calculations ourselves to extract linear acceleration data from normal acceleration data.
 	 * 
 	 * A gyroscope is more suitable for this task, but consumes more battery while giving better accuracy. Gyro
 	 * support is planned for a future version of this app and it's currently work-in-progress. It's quite 
