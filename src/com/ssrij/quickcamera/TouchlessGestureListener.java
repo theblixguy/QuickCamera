@@ -382,18 +382,21 @@ public class TouchlessGestureListener extends Service {
 		public void onSensorChanged(SensorEvent arg0) {
 			Log.i(TAG, "Acceleration detected, computing values");
 			float constant = 0.8f;
-			float y_value = arg0.values[1];
 			float x_value = arg0.values[0];
+			float y_value = arg0.values[1];
 			float linear_x_value;
 			float linear_y_value;
-			float gravity = 0;
-			gravity = constant * gravity + (1 - constant) * arg0.values[0];
-			linear_y_value = y_value - gravity;
-			linear_x_value = x_value - gravity;
+			float gravity_x = 0;
+			float gravity_y = 0;
+			gravity_x = constant * gravity_x + (1 - constant) * arg0.values[0];
+			gravity_y = constant * gravity_y + (1 - constant) * arg0.values[1];
+			linear_x_value = x_value - gravity_x;
+			linear_y_value = y_value - gravity_y;
 
 			Log.i(TAG, "Acceleration (X): " + x_value);
 			Log.i(TAG, "Acceleration (Y): " + y_value);
-			Log.i(TAG, "Gravity (X): " + gravity);
+			Log.i(TAG, "Gravity (X): " + gravity_x);
+			Log.i(TAG, "Gravity (Y): " + gravity_y);
 			Log.i(TAG, "Linear Acceleration (X): " + linear_x_value);
 			Log.i(TAG, "Linear Acceleration (Y): " + linear_y_value);
 
