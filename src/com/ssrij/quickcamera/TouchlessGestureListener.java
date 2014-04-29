@@ -446,6 +446,14 @@ public class TouchlessGestureListener extends Service {
 					down_how_many = down_how_many + 1;
 					was_down = true;
 					was_up = false;
+					
+					if (is_timer_running == false) {
+						timer = new Timer();
+						GestureTimerTask = new GestureDetectionTimerTask();
+						timer.schedule(GestureTimerTask, 1500);
+						is_timer_running = true;
+						proper_gesture = true;
+					}
 
 				}
 			}
@@ -464,7 +472,7 @@ public class TouchlessGestureListener extends Service {
 			public void onSensorChanged(SensorEvent arg0) {
 				Log.i(TAG, "Linear acceleration detected, computing values");
 				float x_value = arg0.values[0];
-				float y_value = arg0.values[0];
+				float y_value = arg0.values[1];
 
 				if (x_value > threshold && y_value > 2){
 					if (was_up == false && was_down == true) {
@@ -489,6 +497,14 @@ public class TouchlessGestureListener extends Service {
 						down_how_many = down_how_many + 1;
 						was_down = true;
 						was_up = false;
+						
+						if (is_timer_running == false) {
+							timer = new Timer();
+							GestureTimerTask = new GestureDetectionTimerTask();
+							timer.schedule(GestureTimerTask, 1500);
+							is_timer_running = true;
+							proper_gesture = true;
+						}
 
 					}
 				}
@@ -513,6 +529,98 @@ public class TouchlessGestureListener extends Service {
 			 */
 
 			SensorEventListener ProximityEventListener = new SensorEventListener(){
+
+				@Override
+				public void onAccuracyChanged(Sensor arg0, int arg1) {
+					// We don't require this interrupt
+
+				}
+
+				@Override
+				public void onSensorChanged(SensorEvent arg0) {
+					float distance = arg0.values[0];
+					if (distance == arg0.sensor.getMaximumRange()) {
+						Log.i(TAG, "Phone is outside pocket");
+						in_pocket = false;
+						registerAccelerometerSensor();
+					}
+					else {
+						Log.i(TAG, "Phone is in pocket");
+						in_pocket = true;
+						unregisterAccelerometerSensor();
+					}
+				}};
+
+				/* Class that handles gesture timing */
+
+				class GestureDetectionTimerTask extends TimerTask {
+
+					@Override
+					public void run() {
+						is_timer_running = false;
+						proper_gesture = false;
+						up_how_many = 0;
+						down_how_many = 0;
+					}
+
+				}
+
+				private final BroadcastReceiver receiver = new BroadcastReceiver() {
+
+					TelephonyManager telephony;
+					GesturePhoneStateListener gesturePhoneListener;
+
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						String action = intent.getAction();
+						if(action.equals("android.intent.action.PHONE_STATE")){
+							Log.i(TAG, "Registering call state listener");
+							gesturePhoneListener = new GesturePhoneStateListener();
+							telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+							telephony.listen(gesturePhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
+						}   
+					}
+
+					/* Class that handles change in call state to pause/resume gesture recognition */
+
+					class GesturePhoneStateListener extends PhoneStateListener {  
+
+						int previous_call_state = 0; 
+
+						@Override  
+						public void onCallStateChanged(int state, String incomingNumber){     
+
+							switch(state){  
+							case TelephonyManager.CALL_STATE_RINGING:
+								previous_call_state = state;
+								Log.i(TAG, "Phone ringing, stopping accelerometer");
+								unregisterAccelerometerSensor();
+								break;  
+							case TelephonyManager.CALL_STATE_OFFHOOK:  
+								previous_call_state = state;
+								Log.i(TAG, "Phone offhook, stopping accelerometer");
+								unregisterAccelerometerSensor();
+								break;  
+							case TelephonyManager.CALL_STATE_IDLE:   
+								if((previous_call_state == TelephonyManager.CALL_STATE_OFFHOOK)){  
+									previous_call_state = state;  
+									Log.i(TAG, "Phone idle (offhook before), starting accelerometer");
+									registerAccelerometerSensor(); 
+								}  
+								if((previous_call_state == TelephonyManager.CALL_STATE_RINGING)){  
+									previous_call_state = state; 
+									Log.i(TAG, "Phone idle (ringing before), starting accelerometer");
+									registerAccelerometerSensor();  
+								}  
+								break;  
+
+							}  
+						}  
+					} 
+				};
+}
+
+imityEventListener = new SensorEventListener(){
 
 				@Override
 				public void onAccuracyChanged(Sensor arg0, int arg1) {
