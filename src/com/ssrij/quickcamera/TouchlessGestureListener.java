@@ -8,8 +8,10 @@ import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
 import android.app.Service;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.hardware.Camera;
 import android.hardware.Sensor;
@@ -22,6 +24,8 @@ import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.Vibrator;
 import android.provider.MediaStore;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 @SuppressLint({ "Wakelock", "NewApi" }) @SuppressWarnings("deprecation")
@@ -78,6 +82,7 @@ public class TouchlessGestureListener extends Service {
 		Log.i(TAG, "Service destroyted, unregistering listeners");
 		unregisterAccelerometerSensor();
 		unregisterProximitySensor();
+		unregisterReceiver(receiver);
 	}
 
 	/* Entry point of our Gesture service. Before we start detecting the gesture, there are some important
@@ -108,6 +113,10 @@ public class TouchlessGestureListener extends Service {
 		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
 		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
 		wakeLock.acquire();
+
+		IntentFilter filter = new IntentFilter();
+		filter.addAction("android.intent.action.PHONE_STATE");
+		registerReceiver(receiver, filter);
 
 	}
 
@@ -184,12 +193,20 @@ public class TouchlessGestureListener extends Service {
 
 		if (accelerometerPresent && !use_linear_accelerometer) {
 			Log.i(TAG, "Unregistering accelerometer listener");
-			sensorManager.unregisterListener(AccelerometerEventListener);
+			try {
+				sensorManager.unregisterListener(AccelerometerEventListener);
+			} catch (Exception e) {
+				Log.e(TAG, e.toString().toString());
+			}
 		}
 
 		if (use_linear_accelerometer && linearAccelerometerPresent) {
 			Log.i(TAG, "Unregistering linear accelerometer listener");
+			try {
 			sensorManager.unregisterListener(linearAccelerometerEventListener);
+			} catch (Exception e) {
+				Log.e(TAG, e.toString().toString());
+			}
 		}
 	}
 
@@ -199,7 +216,11 @@ public class TouchlessGestureListener extends Service {
 
 		if (use_proximity&& proximityPresent) {
 			Log.i(TAG, "Unregistering proximity listener");
+			try {
 			sensorManager.unregisterListener(ProximityEventListener);
+			} catch (Exception e) {
+				Log.e(TAG, e.toString().toString());
+			}
 		}
 	}
 
@@ -375,6 +396,9 @@ public class TouchlessGestureListener extends Service {
 	 * (which uses both sensors simultaneously to give us linear accelerometer data) so that we dont have to perform 
 	 * certain calculations ourselves to extract linear acceleration data from normal acceleration data.
 	 * 
+	 * We also use a timer to prevent accidental gesture activations, so the gesture activates only if you perform the
+	 * twists within 2 seconds, else it gets discarded
+	 * 
 	 * A gyroscope is more suitable for this task, but consumes more battery while giving better accuracy. Gyro
 	 * support is planned for a future version of this app and it's currently work-in-progress. It's quite 
 	 * complicated to implement gyro support because it involves a lot of calculations, but support
@@ -511,6 +535,8 @@ public class TouchlessGestureListener extends Service {
 					}
 				}};
 
+				/* Class that handles gesture timing */
+
 				class GestureDetectionTimerTask extends TimerTask {
 
 					@Override
@@ -521,4 +547,58 @@ public class TouchlessGestureListener extends Service {
 
 				}
 
+				private final BroadcastReceiver receiver = new BroadcastReceiver() {
+
+					TelephonyManager telephony;
+					GesturePhoneStateListener gesturePhoneListener;
+
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						String action = intent.getAction();
+						if(action.equals("android.intent.action.PHONE_STATE")){
+							Log.i(TAG, "Registering call state listener");
+							gesturePhoneListener = new GesturePhoneStateListener();
+							telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+							telephony.listen(gesturePhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
+						}   
+					}
+
+					/* Class that handles change in call state to pause/resume gesture recognition */
+
+					class GesturePhoneStateListener extends PhoneStateListener {  
+
+						int previous_call_state = 0; 
+
+						@Override  
+						public void onCallStateChanged(int state, String incomingNumber){     
+
+							switch(state){  
+							case TelephonyManager.CALL_STATE_RINGING:
+								previous_call_state = state;
+								Log.i(TAG, "Phone ringing, stopping accelerometer");
+								unregisterAccelerometerSensor();
+								break;  
+							case TelephonyManager.CALL_STATE_OFFHOOK:  
+								previous_call_state = state;
+								Log.i(TAG, "Phone offhook, stopping accelerometer");
+								unregisterAccelerometerSensor();
+								break;  
+							case TelephonyManager.CALL_STATE_IDLE:   
+								if((previous_call_state == TelephonyManager.CALL_STATE_OFFHOOK)){  
+									previous_call_state = state;  
+									Log.i(TAG, "Phone idle (offhook before), starting accelerometer");
+									registerAccelerometerSensor(); 
+								}  
+								if((previous_call_state == TelephonyManager.CALL_STATE_RINGING)){  
+									previous_call_state = state; 
+									Log.i(TAG, "Phone idle (ringing before), starting accelerometer");
+									registerAccelerometerSensor();  
+								}  
+								break;  
+
+							}  
+						}  
+					} 
+				};
 }
+
