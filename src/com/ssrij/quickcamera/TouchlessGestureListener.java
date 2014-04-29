@@ -1,6 +1,8 @@
 package com.ssrij.quickcamera;
 
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
@@ -38,13 +40,17 @@ public class TouchlessGestureListener extends Service {
 	boolean linearAccelerometerPresent;
 	boolean proximityPresent;
 	boolean in_pocket = false;
-	boolean was_up = true;
-	boolean was_down = false;
+	boolean was_up = false;
+	boolean was_down = true;
 	boolean use_linear_accelerometer;
 	boolean use_proximity;
+	boolean is_timer_running = false;
+	boolean proper_gesture = false;
 	int threshold;
 	int up_how_many;
 	int down_how_many;
+	Timer timer;
+	TimerTask GestureTimerTask;
 
 	/* Send a value to the OS, indicating we want the service to be restarted if it gets killed 
 	 * due to a thermonuclear explosion 
@@ -218,7 +224,7 @@ public class TouchlessGestureListener extends Service {
 		if (in_pocket == false) {
 			Log.i(TAG, "1: Phone not in pocket, moving forward");
 
-			if (up_how_many == 2 && down_how_many == 2) {
+			if (up_how_many == 2 && down_how_many == 2 && proper_gesture == true) {
 				Log.i(TAG, "2: Gesture requirements met, moving forward");
 
 				Log.i(TAG, "Veryfing if screen is already on or not");
@@ -393,19 +399,21 @@ public class TouchlessGestureListener extends Service {
 			linear_x_value = x_value - gravity_x;
 			linear_y_value = y_value - gravity_y;
 
-			Log.i(TAG, "Acceleration (X): " + x_value);
-			Log.i(TAG, "Acceleration (Y): " + y_value);
-			Log.i(TAG, "Gravity (X): " + gravity_x);
-			Log.i(TAG, "Gravity (Y): " + gravity_y);
-			Log.i(TAG, "Linear Acceleration (X): " + linear_x_value);
-			Log.i(TAG, "Linear Acceleration (Y): " + linear_y_value);
-
 			if (linear_x_value > threshold && linear_y_value > 2){
 				if (was_up == false && was_down == true) {
 					Log.i(TAG, "Turn up");
 					up_how_many = up_how_many + 1;
 					was_up = true;
 					was_down = false;
+
+					if (is_timer_running == false) {
+						timer = new Timer();
+						GestureTimerTask = new GestureDetectionTimerTask();
+						timer.schedule(GestureTimerTask, 1500);
+						is_timer_running = true;
+						proper_gesture = true;
+					}
+
 				}
 			}
 			else if (linear_x_value > -threshold && linear_y_value > 2) {
@@ -414,6 +422,7 @@ public class TouchlessGestureListener extends Service {
 					down_how_many = down_how_many + 1;
 					was_down = true;
 					was_up = false;
+
 				}
 			}
 			launchCamera();
@@ -433,14 +442,21 @@ public class TouchlessGestureListener extends Service {
 				float x_value = arg0.values[0];
 				float y_value = arg0.values[0];
 
-				Log.i(TAG, "Linear Acceleration: " + x_value);
-
 				if (x_value > threshold && y_value > 2){
 					if (was_up == false && was_down == true) {
 						Log.i(TAG, "Turn up");
 						up_how_many = up_how_many + 1;
 						was_up = true;
 						was_down = false;
+
+						if (is_timer_running == false) {
+							timer = new Timer();
+							GestureTimerTask = new GestureDetectionTimerTask();
+							timer.schedule(GestureTimerTask, 1500);
+							is_timer_running = true;
+							proper_gesture = true;
+						}
+
 					}
 				}
 				else if (x_value > -threshold && y_value > 2) {
@@ -449,8 +465,10 @@ public class TouchlessGestureListener extends Service {
 						down_how_many = down_how_many + 1;
 						was_down = true;
 						was_up = false;
+
 					}
 				}
+
 				launchCamera();
 			}
 
@@ -492,5 +510,15 @@ public class TouchlessGestureListener extends Service {
 						unregisterAccelerometerSensor();
 					}
 				}};
+
+				class GestureDetectionTimerTask extends TimerTask {
+
+					@Override
+					public void run() {
+						is_timer_running = false;
+						proper_gesture = false;
+					}
+
+				}
 
 }
