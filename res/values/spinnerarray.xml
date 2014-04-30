@@ -2,6 +2,6 @@
 <resources>
     <string-array name="spinner_array">
         <item>Accelerometer (Normal accuracy)</item>
-        <item>Linear Accelerometer (High Accuracy)</item>
+        <item>Rotation Vector (High Accuracy)</item>
     </string-array>
 </resources>

@@ -43,7 +43,7 @@
         android:layout_below="@+id/spinner1"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="25dp"
-        android:text="X-axis threshold (0-10)"
+        android:text="Vibration intensity (milliseconds)"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="@android:color/holo_blue_dark" />
 

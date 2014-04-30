@@ -19,9 +19,9 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 	/* Variables we require */
 
 	private static final String TAG = "TouchlessCamera";
-	boolean use_linear_accelerometer;
+	boolean use_rotation_vector;
 	boolean use_proximity = false;
-	int threshold = 5;
+	int vibration_intensity = 150;
 
 	/* Entry point of our activity. Nothing too fancy, just read user preferences and update the fields */
 
@@ -41,9 +41,9 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
-		use_linear_accelerometer = settings.getBoolean("use_linear_accelerometer", false);
+		use_rotation_vector = settings.getBoolean("use_rotation_vector", true);
 		use_proximity = settings.getBoolean("use_proximity", false);
-		threshold = settings.getInt("threshold", 5);
+		vibration_intensity = settings.getInt("vibration_intensity", 150);
 
 		if (use_proximity == true) {
 			proximitySwitch.setChecked(true);
@@ -52,9 +52,9 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 			proximitySwitch.setChecked(false);
 		}
 
-		ed.setText(Integer.toString(threshold));
+		ed.setText(Integer.toString(vibration_intensity));
 
-		if (use_linear_accelerometer == false) {
+		if (use_rotation_vector == false) {
 			spinner1.setSelection(0);
 		}
 		else {
@@ -82,12 +82,12 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 		switch (pos) {
 		case 0:
-			use_linear_accelerometer = false;
-			Log.i(TAG, "Use linear accelerometer disabled");
+			use_rotation_vector = false;
+			Log.i(TAG, "Use rotation vector disabled");
 			break;
 		case 1:
-			use_linear_accelerometer = true;
-			Log.i(TAG, "Use linear accelerometer enabled");
+			use_rotation_vector = true;
+			Log.i(TAG, "Use rotation vector enabled");
 			break;
 		}
 	}
@@ -103,12 +103,12 @@ public class DebugPrefActivity extends Activity implements OnItemSelectedListene
 
 	public void SaveSettings (View v) {
 		EditText ed1 = (EditText) findViewById(R.id.editText1);
-		threshold = Integer.parseInt(ed1.getText().toString());
+		vibration_intensity = Integer.parseInt(ed1.getText().toString());
 		SharedPreferences app_settings = getSharedPreferences("app_prefs", 0);
 		SharedPreferences.Editor settings_editor = app_settings.edit();
-		settings_editor.putBoolean("use_linear_accelerometer", use_linear_accelerometer);
+		settings_editor.putBoolean("use_rotation_vector", use_rotation_vector);
 		settings_editor.putBoolean("use_proximity", use_proximity);
-		settings_editor.putInt("threshold", threshold);
+		settings_editor.putInt("vibration_intensity", vibration_intensity);
 		Log.i(TAG, "Saving debug prefs");
 		settings_editor.commit();
 	}

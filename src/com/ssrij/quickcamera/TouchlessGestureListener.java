@@ -38,19 +38,19 @@ public class TouchlessGestureListener extends Service {
 	PowerManager mgr;
 	SensorManager sensorManager;
 	Sensor accelerometerSensor;
-	Sensor linearAccelerometerSensor;
+	Sensor rotationVectorSensor;
 	Sensor proximitySensor;
 	boolean accelerometerPresent;
-	boolean linearAccelerometerPresent;
+	boolean rotationVectorPresent;
 	boolean proximityPresent;
 	boolean in_pocket = false;
 	boolean was_up = false;
 	boolean was_down = true;
-	boolean use_linear_accelerometer;
+	boolean use_rotation_vector;
 	boolean use_proximity;
 	boolean is_timer_running = false;
 	boolean proper_gesture = false;
-	int threshold;
+	int vibration_intensity;
 	int up_how_many;
 	int down_how_many;
 	Timer timer;
@@ -101,8 +101,8 @@ public class TouchlessGestureListener extends Service {
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
 		use_proximity = settings.getBoolean("use_proximity", false);
-		use_linear_accelerometer = settings.getBoolean("use_linear_accelerometer", false);
-		threshold = settings.getInt("threshold", 5);
+		use_rotation_vector = settings.getBoolean("use_rotation_vector", true);
+		vibration_intensity = settings.getInt("vibration_intensity", 150);
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 
@@ -138,28 +138,28 @@ public class TouchlessGestureListener extends Service {
 			this.stopSelf();
 		}
 
-		List<Sensor> sensorList2 = sensorManager.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION);
+		List<Sensor> sensorList2 = sensorManager.getSensorList(Sensor.TYPE_ROTATION_VECTOR);
 		if(sensorList2.size() > 0){
-			linearAccelerometerPresent = true;
+			rotationVectorPresent = true;
 			Log.i(TAG, "Linear accelerometer detected");
-			linearAccelerometerSensor = sensorList2.get(0);  
+			rotationVectorSensor = sensorList2.get(0);  
 		}
 		else{
 			Log.w(TAG, "No Linear accelerometer detected");
-			linearAccelerometerPresent = false;
+			rotationVectorPresent = false;
 		}
 
 		if(accelerometerPresent){
-			if (!use_linear_accelerometer) {
+			if (!use_rotation_vector) {
 				Log.i(TAG, "Registering accelerometer listener");
 				sensorManager.registerListener(AccelerometerEventListener, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
 			}
 		}
 
-		if(linearAccelerometerPresent){
-			if (use_linear_accelerometer) {
-				Log.i(TAG, "Registering linear accelerometer listener");
-				sensorManager.registerListener(linearAccelerometerEventListener, linearAccelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
+		if(rotationVectorPresent){
+			if (use_rotation_vector) {
+				Log.i(TAG, "Registering rotation vector listener");
+				sensorManager.registerListener(RotationVectorEventListener, rotationVectorSensor, SensorManager.SENSOR_DELAY_FASTEST);  
 			}
 		}
 	}
@@ -191,7 +191,7 @@ public class TouchlessGestureListener extends Service {
 
 	public void unregisterAccelerometerSensor() {
 
-		if (accelerometerPresent && !use_linear_accelerometer) {
+		if (accelerometerPresent && !use_rotation_vector) {
 			Log.i(TAG, "Unregistering accelerometer listener");
 			try {
 				sensorManager.unregisterListener(AccelerometerEventListener);
@@ -200,10 +200,10 @@ public class TouchlessGestureListener extends Service {
 			}
 		}
 
-		if (use_linear_accelerometer && linearAccelerometerPresent) {
+		if (use_rotation_vector && rotationVectorPresent) {
 			Log.i(TAG, "Unregistering linear accelerometer listener");
 			try {
-			sensorManager.unregisterListener(linearAccelerometerEventListener);
+				sensorManager.unregisterListener(RotationVectorEventListener);
 			} catch (Exception e) {
 				Log.e(TAG, e.toString().toString());
 			}
@@ -217,7 +217,7 @@ public class TouchlessGestureListener extends Service {
 		if (use_proximity&& proximityPresent) {
 			Log.i(TAG, "Unregistering proximity listener");
 			try {
-			sensorManager.unregisterListener(ProximityEventListener);
+				sensorManager.unregisterListener(ProximityEventListener);
 			} catch (Exception e) {
 				Log.e(TAG, e.toString().toString());
 			}
@@ -272,14 +272,14 @@ public class TouchlessGestureListener extends Service {
 					if (is_camera_already_running == false && is_user_in_call == false && lockscreen == false) {
 						if (null != it) {
 							Log.i(TAG, "Starting camera app");
-							vibratePhone(150);
+							vibratePhone(vibration_intensity);
 							this.startActivity(it);
 						}
 					}
 					else if (is_camera_already_running == false && is_user_in_call == false && lockscreen == true) {
 						if (null != secure_it) {
 							Log.i(TAG, "Starting camera app in secure mode");
-							vibratePhone(150);
+							vibratePhone(vibration_intensity);
 							this.startActivity(secure_it);
 						}
 					}
@@ -392,17 +392,12 @@ public class TouchlessGestureListener extends Service {
 	 * called everytime there is a change in acceleration and the camera is invoked only when both up_how_many 
 	 * and down_how_many are equal to 2.
 	 * 
-	 * Some devices have both accelerometer & gyroscope, so we can use the linear accelerometer virtual sensor
-	 * (which uses both sensors simultaneously to give us linear accelerometer data) so that we dont have to perform 
-	 * certain calculations ourselves to extract linear acceleration data from normal acceleration data.
+	 * Some devices have both accelerometer & gyroscope, so we can use the rotation vector virtual sensor
+	 * (which uses both sensors simultaneously to give us a rotation vector) so that we dont have to perform 
+	 * certain calculations ourselves and get much higher accuracy.
 	 * 
 	 * We also use a timer to prevent accidental gesture activations, so the gesture activates only if you perform the
 	 * twists within 2 seconds, else it gets discarded
-	 * 
-	 * A gyroscope is more suitable for this task, but consumes more battery while giving better accuracy. Gyro
-	 * support is planned for a future version of this app and it's currently work-in-progress. It's quite 
-	 * complicated to implement gyro support because it involves a lot of calculations, but support
-	 * will eventually be added very soon.
 	 * 
 	 */
 
@@ -423,7 +418,7 @@ public class TouchlessGestureListener extends Service {
 			linear_x_value = x_value - gravity_x;
 			linear_y_value = y_value - gravity_y;
 
-			if (linear_x_value > threshold && linear_y_value > 2){
+			if (linear_x_value > 3 && linear_y_value > 2){
 				if (was_up == false && was_down == true) {
 					Log.i(TAG, "Turn up");
 					up_how_many = up_how_many + 1;
@@ -440,17 +435,17 @@ public class TouchlessGestureListener extends Service {
 
 				}
 			}
-			else if (linear_x_value > -threshold && linear_y_value > 2) {
+			else if (linear_x_value > -3 && linear_y_value > 2) {
 				if (was_down == false && was_up == true) {
 					Log.i(TAG, "Turn down");
 					down_how_many = down_how_many + 1;
 					was_down = true;
 					was_up = false;
-					
+
 					if (is_timer_running == false) {
 						timer = new Timer();
 						GestureTimerTask = new GestureDetectionTimerTask();
-						timer.schedule(GestureTimerTask, 1500);
+						timer.schedule(GestureTimerTask, 2000);
 						is_timer_running = true;
 						proper_gesture = true;
 					}
@@ -466,15 +461,15 @@ public class TouchlessGestureListener extends Service {
 
 		}};
 
-		SensorEventListener linearAccelerometerEventListener = new SensorEventListener(){
+		SensorEventListener RotationVectorEventListener = new SensorEventListener(){
 
 			@Override
 			public void onSensorChanged(SensorEvent arg0) {
-				Log.i(TAG, "Linear acceleration detected, computing values");
-				float x_value = arg0.values[0];
+				Log.i(TAG, "Roatation vector detected, computing values");
 				float y_value = arg0.values[1];
+				Log.i(TAG, "Y axis vector: " + y_value);
 
-				if (x_value > threshold && y_value > 2){
+				if (y_value > 0.2){
 					if (was_up == false && was_down == true) {
 						Log.i(TAG, "Turn up");
 						up_how_many = up_how_many + 1;
@@ -491,13 +486,13 @@ public class TouchlessGestureListener extends Service {
 
 					}
 				}
-				else if (x_value > -threshold && y_value > 2) {
+				else if (y_value > -0.4) {
 					if (was_down == false && was_up == true) {
 						Log.i(TAG, "Turn down");
 						down_how_many = down_how_many + 1;
 						was_down = true;
 						was_up = false;
-						
+
 						if (is_timer_running == false) {
 							timer = new Timer();
 							GestureTimerTask = new GestureDetectionTimerTask();
@@ -619,4 +614,3 @@ public class TouchlessGestureListener extends Service {
 					} 
 				};
 }
-
