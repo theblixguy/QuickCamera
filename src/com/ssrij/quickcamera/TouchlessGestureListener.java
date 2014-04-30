@@ -37,22 +37,22 @@ public class TouchlessGestureListener extends Service {
 	WakeLock wakeLock;
 	PowerManager mgr;
 	SensorManager sensorManager;
-	Sensor accelerometerSensor;
 	Sensor rotationVectorSensor;
 	Sensor proximitySensor;
-	boolean accelerometerPresent;
 	boolean rotationVectorPresent;
 	boolean proximityPresent;
 	boolean in_pocket = false;
 	boolean was_up = false;
 	boolean was_down = true;
-	boolean use_rotation_vector;
 	boolean use_proximity;
 	boolean is_timer_running = false;
 	boolean proper_gesture = false;
 	int vibration_intensity;
 	int up_how_many;
 	int down_how_many;
+	float twist_back_z = 0.6f;
+	float twist_back_y = 0.2f;
+	float twist_forward_y = 0.4f;
 	Timer timer;
 	TimerTask GestureTimerTask;
 
@@ -80,9 +80,11 @@ public class TouchlessGestureListener extends Service {
 
 		super.onDestroy();
 		Log.i(TAG, "Service destroyted, unregistering listeners");
-		unregisterAccelerometerSensor();
-		unregisterProximitySensor();
-		unregisterReceiver(receiver);
+		try {
+			unregisterRotationVectorSensor();
+			unregisterProximitySensor();
+			unregisterReceiver(receiver);
+		} catch (Exception e) {}
 	}
 
 	/* Entry point of our Gesture service. Before we start detecting the gesture, there are some important
@@ -101,12 +103,16 @@ public class TouchlessGestureListener extends Service {
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
 		use_proximity = settings.getBoolean("use_proximity", false);
-		use_rotation_vector = settings.getBoolean("use_rotation_vector", true);
 		vibration_intensity = settings.getInt("vibration_intensity", 150);
+		twist_back_z = settings.getFloat("twist_back_z", 0.6f);
+		twist_back_y = settings.getFloat("twist_back_y", 0.2f);
+		twist_forward_y = settings.getFloat("twist_forward_y", 0.4f);
+		
+		Log.i(TAG, "Current gesture values -> Twist Back Z: " + twist_back_z + " Twist Back Y: " + twist_back_y + " Twist Forward Y: " + twist_forward_y);
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 
-		registerAccelerometerSensor();
+		registerRotationVectorSensor();
 		registerProximitySensor();
 
 		Log.i(TAG, "Acquiring partial wakelock for background service");
@@ -120,47 +126,27 @@ public class TouchlessGestureListener extends Service {
 
 	}
 
-	/* Function to register accelerometer or linear accelerometer listeners. If no accelerometer is
+	/* Function to register rotation vector listener. If no rotation vector is
 	 * found then the service stops itself. 
 	 */
 
-	public void registerAccelerometerSensor() {
+	public void registerRotationVectorSensor() {
 
-		List<Sensor> sensorList = sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER);
+		List<Sensor> sensorList = sensorManager.getSensorList(Sensor.TYPE_ROTATION_VECTOR);
 		if(sensorList.size() > 0){
-			Log.i(TAG, "Accelerometer sensor detected");
-			accelerometerPresent = true;
-			accelerometerSensor = sensorList.get(0);  
-		}
-		else{
-			Log.e(TAG, "No accelerometer sensor detected, stopping service");
-			accelerometerPresent = false;
-			this.stopSelf();
-		}
-
-		List<Sensor> sensorList2 = sensorManager.getSensorList(Sensor.TYPE_ROTATION_VECTOR);
-		if(sensorList2.size() > 0){
 			rotationVectorPresent = true;
-			Log.i(TAG, "Linear accelerometer detected");
-			rotationVectorSensor = sensorList2.get(0);  
+			Log.i(TAG, "Rotation vector detected");
+			rotationVectorSensor = sensorList.get(0);  
 		}
 		else{
-			Log.w(TAG, "No Linear accelerometer detected");
+			Log.w(TAG, "No Rotation vector detected");
 			rotationVectorPresent = false;
-		}
-
-		if(accelerometerPresent){
-			if (!use_rotation_vector) {
-				Log.i(TAG, "Registering accelerometer listener");
-				sensorManager.registerListener(AccelerometerEventListener, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);  
-			}
+			stopSelf();
 		}
 
 		if(rotationVectorPresent){
-			if (use_rotation_vector) {
-				Log.i(TAG, "Registering rotation vector listener");
-				sensorManager.registerListener(RotationVectorEventListener, rotationVectorSensor, SensorManager.SENSOR_DELAY_FASTEST);  
-			}
+			Log.i(TAG, "Registering rotation vector listener");
+			sensorManager.registerListener(RotationVectorEventListener, rotationVectorSensor, SensorManager.SENSOR_DELAY_FASTEST);  
 		}
 	}
 
@@ -187,21 +173,12 @@ public class TouchlessGestureListener extends Service {
 		}
 	}
 
-	/* Function to unregister accelerometer or linear accelerometer sensor listener */
+	/* Function to unregister rotation vector sensor listener */
 
-	public void unregisterAccelerometerSensor() {
+	public void unregisterRotationVectorSensor() {
 
-		if (accelerometerPresent && !use_rotation_vector) {
-			Log.i(TAG, "Unregistering accelerometer listener");
-			try {
-				sensorManager.unregisterListener(AccelerometerEventListener);
-			} catch (Exception e) {
-				Log.e(TAG, e.toString().toString());
-			}
-		}
-
-		if (use_rotation_vector && rotationVectorPresent) {
-			Log.i(TAG, "Unregistering linear accelerometer listener");
+		if (rotationVectorPresent) {
+			Log.i(TAG, "Unregistering rotation vector listener");
 			try {
 				sensorManager.unregisterListener(RotationVectorEventListener);
 			} catch (Exception e) {
@@ -261,6 +238,8 @@ public class TouchlessGestureListener extends Service {
 
 				try
 				{
+					//Intent test_intent = new Intent(this, QuickCameraPreview.class);
+					//test_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 					Intent it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
 					Intent secure_it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE);
 					it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
@@ -379,46 +358,24 @@ public class TouchlessGestureListener extends Service {
 	}
 
 	/* 
-	 * Accelerometer is used to detect the launch gesture. Accelerometer is a bit tricky to use
-	 * since the force of gravity has an effect on the values and in order to get the actual, aka
-	 * linear acceleration data, we have to isolate the gravity from the values. A simple low-pass
-	 * filter can help, so we use that. Once we have the optimized data, we check the linear acceleration 
-	 * across the X and Y axis in x-y-z space and we use the values to construct our gesture. Usually, a 
-	 * value of > 5 indicates the phone is facing towards the user and a value of > -5 indicates the phone 
-	 * is facing the opposite side. If the user  twists the phone twice, the linear acceleration goes from 
-	 * > 5 to > -5 four times. We record the values and increment up_how_many everytime the acceleration hits 
-	 * > 5 and increment down_how_many everytime acceleration hits > -5. We also do some conditional checks 
-	 * before incrementing to make sure the device was previously facing the opposite side. launchCamera() is 
-	 * called everytime there is a change in acceleration and the camera is invoked only when both up_how_many 
-	 * and down_how_many are equal to 2.
-	 * 
-	 * Some devices have both accelerometer & gyroscope, so we can use the rotation vector virtual sensor
-	 * (which uses both sensors simultaneously to give us a rotation vector) so that we dont have to perform 
-	 * certain calculations ourselves and get much higher accuracy.
+	 * We can use the rotation vector virtual sensor(which uses both sensors simultaneously to give us a 
+	 * rotation vector) so that we dont have to perform certain calculations ourselves and get much higher accuracy.
 	 * 
 	 * We also use a timer to prevent accidental gesture activations, so the gesture activates only if you perform the
 	 * twists within 2 seconds, else it gets discarded
 	 * 
 	 */
 
-	SensorEventListener AccelerometerEventListener = new SensorEventListener(){
+	SensorEventListener RotationVectorEventListener = new SensorEventListener(){
 
 		@Override
 		public void onSensorChanged(SensorEvent arg0) {
-			Log.i(TAG, "Acceleration detected, computing values");
-			float constant = 0.8f;
-			float x_value = arg0.values[0];
+			Log.i(TAG, "Roatation vector detected, computing values");
 			float y_value = arg0.values[1];
-			float linear_x_value;
-			float linear_y_value;
-			float gravity_x = 0;
-			float gravity_y = 0;
-			gravity_x = constant * gravity_x + (1 - constant) * arg0.values[0];
-			gravity_y = constant * gravity_y + (1 - constant) * arg0.values[1];
-			linear_x_value = x_value - gravity_x;
-			linear_y_value = y_value - gravity_y;
+			float z_value = arg0.values[2];
+			Log.i(TAG, "Y axis vector: " + y_value);
 
-			if (linear_x_value > 3 && linear_y_value > 2){
+			if (y_value > twist_back_y && z_value < twist_back_z){
 				if (was_up == false && was_down == true) {
 					Log.i(TAG, "Turn up");
 					up_how_many = up_how_many + 1;
@@ -435,7 +392,7 @@ public class TouchlessGestureListener extends Service {
 
 				}
 			}
-			else if (linear_x_value > -3 && linear_y_value > 2) {
+			else if (y_value > -twist_forward_y) {
 				if (was_down == false && was_up == true) {
 					Log.i(TAG, "Turn down");
 					down_how_many = down_how_many + 1;
@@ -445,13 +402,14 @@ public class TouchlessGestureListener extends Service {
 					if (is_timer_running == false) {
 						timer = new Timer();
 						GestureTimerTask = new GestureDetectionTimerTask();
-						timer.schedule(GestureTimerTask, 2000);
+						timer.schedule(GestureTimerTask, 1500);
 						is_timer_running = true;
 						proper_gesture = true;
 					}
 
 				}
 			}
+
 			launchCamera();
 		}
 
@@ -461,156 +419,104 @@ public class TouchlessGestureListener extends Service {
 
 		}};
 
-		SensorEventListener RotationVectorEventListener = new SensorEventListener(){
+		/* 
+		 * Proximity sensor is used by this service to prevent the camera from launching when the
+		 * user keeps the phone in his/her pocket and prevent battery drain due to accelerometer. 
+		 * We simply check whether the distance reported by the sensor is equal to the sensor's maximum 
+		 * range to determine whether it's in the pocket or not. If the distance is equal then we assume 
+		 * it's not in the pocket and if it's not then it's in the pocket, easy. The variable in_pocket is 
+		 * used by launchCamera() to quickly check whether the phone is in the user's pocket or not.
+		 * 
+		 */
 
-			@Override
-			public void onSensorChanged(SensorEvent arg0) {
-				Log.i(TAG, "Roatation vector detected, computing values");
-				float y_value = arg0.values[1];
-				Log.i(TAG, "Y axis vector: " + y_value);
-
-				if (y_value > 0.2){
-					if (was_up == false && was_down == true) {
-						Log.i(TAG, "Turn up");
-						up_how_many = up_how_many + 1;
-						was_up = true;
-						was_down = false;
-
-						if (is_timer_running == false) {
-							timer = new Timer();
-							GestureTimerTask = new GestureDetectionTimerTask();
-							timer.schedule(GestureTimerTask, 1500);
-							is_timer_running = true;
-							proper_gesture = true;
-						}
-
-					}
-				}
-				else if (y_value > -0.4) {
-					if (was_down == false && was_up == true) {
-						Log.i(TAG, "Turn down");
-						down_how_many = down_how_many + 1;
-						was_down = true;
-						was_up = false;
-
-						if (is_timer_running == false) {
-							timer = new Timer();
-							GestureTimerTask = new GestureDetectionTimerTask();
-							timer.schedule(GestureTimerTask, 1500);
-							is_timer_running = true;
-							proper_gesture = true;
-						}
-
-					}
-				}
-
-				launchCamera();
-			}
+		SensorEventListener ProximityEventListener = new SensorEventListener(){
 
 			@Override
 			public void onAccuracyChanged(Sensor arg0, int arg1) {
 				// We don't require this interrupt
 
+			}
+
+			@Override
+			public void onSensorChanged(SensorEvent arg0) {
+				float distance = arg0.values[0];
+				if (distance == arg0.sensor.getMaximumRange()) {
+					Log.i(TAG, "Phone is outside pocket");
+					in_pocket = false;
+					registerRotationVectorSensor();
+				}
+				else {
+					Log.i(TAG, "Phone is in pocket");
+					in_pocket = true;
+					unregisterRotationVectorSensor();
+				}
 			}};
 
-			/* 
-			 * Proximity sensor is used by this service to prevent the camera from launching when the
-			 * user keeps the phone in his/her pocket and prevent battery drain due to accelerometer. 
-			 * We simply check whether the distance reported by the sensor is equal to the sensor's maximum 
-			 * range to determine whether it's in the pocket or not. If the distance is equal then we assume 
-			 * it's not in the pocket and if it's not then it's in the pocket, easy. The variable in_pocket is 
-			 * used by launchCamera() to quickly check whether the phone is in the user's pocket or not.
-			 * 
-			 */
+			/* Class that handles gesture timing */
 
-			SensorEventListener ProximityEventListener = new SensorEventListener(){
+			class GestureDetectionTimerTask extends TimerTask {
 
 				@Override
-				public void onAccuracyChanged(Sensor arg0, int arg1) {
-					// We don't require this interrupt
-
+				public void run() {
+					is_timer_running = false;
+					proper_gesture = false;
+					up_how_many = 0;
+					down_how_many = 0;
 				}
+
+			}
+
+			private final BroadcastReceiver receiver = new BroadcastReceiver() {
+
+				TelephonyManager telephony;
+				GesturePhoneStateListener gesturePhoneListener;
 
 				@Override
-				public void onSensorChanged(SensorEvent arg0) {
-					float distance = arg0.values[0];
-					if (distance == arg0.sensor.getMaximumRange()) {
-						Log.i(TAG, "Phone is outside pocket");
-						in_pocket = false;
-						registerAccelerometerSensor();
-					}
-					else {
-						Log.i(TAG, "Phone is in pocket");
-						in_pocket = true;
-						unregisterAccelerometerSensor();
-					}
-				}};
-
-				/* Class that handles gesture timing */
-
-				class GestureDetectionTimerTask extends TimerTask {
-
-					@Override
-					public void run() {
-						is_timer_running = false;
-						proper_gesture = false;
-						up_how_many = 0;
-						down_how_many = 0;
-					}
-
+				public void onReceive(Context context, Intent intent) {
+					String action = intent.getAction();
+					if(action.equals("android.intent.action.PHONE_STATE")){
+						Log.i(TAG, "Registering call state listener");
+						gesturePhoneListener = new GesturePhoneStateListener();
+						telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+						telephony.listen(gesturePhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
+					}   
 				}
 
-				private final BroadcastReceiver receiver = new BroadcastReceiver() {
+				/* Class that handles change in call state to pause/resume gesture recognition */
 
-					TelephonyManager telephony;
-					GesturePhoneStateListener gesturePhoneListener;
+				class GesturePhoneStateListener extends PhoneStateListener {  
 
-					@Override
-					public void onReceive(Context context, Intent intent) {
-						String action = intent.getAction();
-						if(action.equals("android.intent.action.PHONE_STATE")){
-							Log.i(TAG, "Registering call state listener");
-							gesturePhoneListener = new GesturePhoneStateListener();
-							telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-							telephony.listen(gesturePhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
-						}   
-					}
+					int previous_call_state = 0; 
 
-					/* Class that handles change in call state to pause/resume gesture recognition */
+					@Override  
+					public void onCallStateChanged(int state, String incomingNumber){     
 
-					class GesturePhoneStateListener extends PhoneStateListener {  
-
-						int previous_call_state = 0; 
-
-						@Override  
-						public void onCallStateChanged(int state, String incomingNumber){     
-
-							switch(state){  
-							case TelephonyManager.CALL_STATE_RINGING:
-								previous_call_state = state;
-								Log.i(TAG, "Phone ringing, stopping accelerometer");
-								unregisterAccelerometerSensor();
-								break;  
-							case TelephonyManager.CALL_STATE_OFFHOOK:  
-								previous_call_state = state;
-								Log.i(TAG, "Phone offhook, stopping accelerometer");
-								unregisterAccelerometerSensor();
-								break;  
-							case TelephonyManager.CALL_STATE_IDLE:   
-								if((previous_call_state == TelephonyManager.CALL_STATE_OFFHOOK)){  
-									previous_call_state = state;  
-									Log.i(TAG, "Phone idle (offhook before), starting accelerometer");
-									registerAccelerometerSensor(); 
-								}  
-								if((previous_call_state == TelephonyManager.CALL_STATE_RINGING)){  
-									previous_call_state = state; 
-									Log.i(TAG, "Phone idle (ringing before), starting accelerometer");
-									registerAccelerometerSensor();  
-								}  
-								break;  
-
+						switch(state){  
+						case TelephonyManager.CALL_STATE_RINGING:
+							previous_call_state = state;
+							Log.i(TAG, "Phone ringing, stopping accelerometer");
+							unregisterRotationVectorSensor();
+							break;  
+						case TelephonyManager.CALL_STATE_OFFHOOK:  
+							previous_call_state = state;
+							Log.i(TAG, "Phone offhook, stopping accelerometer");
+							unregisterRotationVectorSensor();
+							break;  
+						case TelephonyManager.CALL_STATE_IDLE:   
+							if((previous_call_state == TelephonyManager.CALL_STATE_OFFHOOK)){  
+								previous_call_state = state;  
+								Log.i(TAG, "Phone idle (offhook before), starting accelerometer");
+								registerRotationVectorSensor();
 							}  
+							if((previous_call_state == TelephonyManager.CALL_STATE_RINGING)){  
+								previous_call_state = state; 
+								Log.i(TAG, "Phone idle (ringing before), starting accelerometer");
+								registerRotationVectorSensor();  
+							}  
+							break;  
+
 						}  
-					} 
-				};
+					}  
+				} 
+			};
 }

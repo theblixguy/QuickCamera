@@ -2,61 +2,8 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/background"
     android:orientation="vertical" >
-
-    <TextView
-        android:id="@+id/textView2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/textView1"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="12dp"
-        android:text="Sensor Type"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textColor="@android:color/holo_blue_dark" />
-
-    <Spinner
-        android:id="@+id/spinner1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/textView1"
-        android:layout_alignRight="@+id/button1"
-        android:layout_below="@+id/textView2"
-        android:layout_marginTop="27dp"
-        android:gravity="center" />
-
-    <EditText
-        android:id="@+id/editText1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/textView3"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="33dp"
-        android:ems="10"
-        android:inputType="number"
-        android:text="9" />
-
-    <TextView
-        android:id="@+id/textView3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/spinner1"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="25dp"
-        android:text="Vibration intensity (milliseconds)"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textColor="@android:color/holo_blue_dark" />
-
-    <TextView
-        android:id="@+id/textView4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/editText1"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="50dp"
-        android:text="Proximity"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textColor="@android:color/holo_blue_dark" />
 
     <TextView
         android:id="@+id/textView5"
@@ -70,29 +17,18 @@
         android:textColor="#000000"
         android:textSize="15sp"
         android:textStyle="italic" />
-
+    
     <TextView
-        android:id="@+id/textView1"
+        android:id="@+id/textView4"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_marginTop="23dp"
-        android:layout_toLeftOf="@+id/textView4"
-        android:gravity="center"
-        android:text="Debug settings"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
-
-    <Button
-        android:id="@+id/button1"
-        style="?android:attr/buttonStyleSmall"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/textView1"
-        android:layout_alignBottom="@+id/textView1"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="23dp"
-        android:onClick="SaveSettings"
-        android:text="Save" />
+        android:layout_below="@+id/editText1"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="18dp"
+        android:text="Proximity"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
 
     <Switch
         android:id="@+id/switch1"
@@ -100,6 +36,98 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/textView5"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="25dp" />
+        android:layout_marginTop="15dp" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/switch1"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="17dp"
+        android:text="Run on startup"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/TextView01"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView2"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="14dp"
+        android:text="Run service automatically after rebooting"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#000000"
+        android:textSize="15sp"
+        android:textStyle="italic" />
+
+    <Switch
+        android:id="@+id/switch2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/switch1"
+        android:layout_below="@+id/TextView01"
+        android:layout_marginTop="10dp" />
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="25dp"
+        android:layout_toLeftOf="@+id/switch1"
+        android:gravity="center"
+        android:text="App Settings"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:typeface="normal" />
+
+    <Button
+        android:id="@+id/button1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/textView1"
+        android:layout_alignBottom="@+id/textView1"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="15dp"
+        android:layout_toRightOf="@+id/switch1"
+        android:background="@drawable/btn_flat_blue"
+        android:fontFamily="sans-serif-condensed"
+        android:onClick="SaveSettings"
+        android:padding="10dp"
+        android:paddingBottom="13dp"
+        android:text="Save"
+        android:textColor="#ffffff"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/editText1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView3"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:ems="10"
+        android:inputType="number"
+        android:text="9"
+        android:textColor="#FFFFFF" >
+
+        <requestFocus />
+    </EditText>
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/button1"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="34dp"
+        android:text="Vibration intensity (milliseconds)"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
 
 </RelativeLayout>

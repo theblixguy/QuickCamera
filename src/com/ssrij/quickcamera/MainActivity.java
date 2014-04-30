@@ -1,6 +1,9 @@
 package com.ssrij.quickcamera;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -18,7 +21,7 @@ public class MainActivity extends Activity {
 	private static final String TAG = "TouchlessCamera";
 	int voltimes = 0;
 	boolean first_run;
-	
+
 	/* Entry point of our activity */
 
 	@Override
@@ -34,21 +37,21 @@ public class MainActivity extends Activity {
 			startActivity(new Intent(this, TutorialActivity.class));
 		}
 	}
-	
+
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) 
 	{
-	    switch(keyCode)
-	    {
-	        case KeyEvent.KEYCODE_BACK:
+		switch(keyCode)
+		{
+		case KeyEvent.KEYCODE_BACK:
 
-	            moveTaskToBack(true);
+			moveTaskToBack(true);
 
-	            return true;
-	    }
-	    return false;
+			return true;
+		}
+		return false;
 	}
-	
+
 	/* You know what this does */
 
 	@Override
@@ -57,9 +60,9 @@ public class MainActivity extends Activity {
 		getMenuInflater().inflate(R.menu.menu, menu);
 		return true;
 	}
-	
+
 	/* Open the debug settings */
-	
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 
@@ -71,18 +74,45 @@ public class MainActivity extends Activity {
 			Toast.makeText(getApplicationContext(), "For debugging only", Toast.LENGTH_SHORT).show(); 
 			return true;
 
+		case R.id.action_calibration:
+			boolean is_service_running = isServiceAlreadyRunning();
+			if (!is_service_running) {
+				startActivity(new Intent(this, TwistCalibrationActivity.class));
+				Log.i(TAG, "Calibration accessed");
+			} else {
+				Toast.makeText(getApplicationContext(), "Service is currently running. Please stop it first", Toast.LENGTH_SHORT).show();
+			}
+			return true;
+
 		default:
 			return super.onOptionsItemSelected(item);
 		}
 
 	}
-	
+
+	/* Checks if service is already running */
+
+	private boolean isServiceAlreadyRunning() {
+		ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+		for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+			if (TouchlessGestureListener.class.getName().equals(service.service.getClassName())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/* Start the gesture listener service */
 
 	public void StartGestureService(View v) {
-		startService(new Intent(this, TouchlessGestureListener.class));
-		Log.i(TAG, "Service started");
-		Toast.makeText(getApplicationContext(), "Service started! You can now close this app", Toast.LENGTH_SHORT).show();
+		boolean is_service_running = isServiceAlreadyRunning();
+		if (!is_service_running) {
+			startService(new Intent(this, TouchlessGestureListener.class));
+			Log.i(TAG, "Service started");
+			Toast.makeText(getApplicationContext(), "Service started! You can now close this app", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(getApplicationContext(), "Service is already running.", Toast.LENGTH_SHORT).show();
+		}
 	}
 
 	/* Stop the gesture listener service */

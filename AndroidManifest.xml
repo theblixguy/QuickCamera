@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ssrij.quickcamera"
-    android:versionCode="7"
+    android:versionCode="8"
     android:versionName="1.0" >
 
     <uses-sdk
@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -61,6 +61,15 @@
             android:label="@string/app_name"
             android:screenOrientation="portrait"
             android:theme="@android:style/Theme.Holo.Light.NoActionBar" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.ssrij.quickcamera.TwistCalibrationActivity"
+            android:configChanges="orientation|keyboardHidden"
+            android:label="@string/app_name"
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>

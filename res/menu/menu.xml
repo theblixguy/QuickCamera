@@ -6,9 +6,9 @@
         android:showAsAction="never"
         android:title="Settings (Debug)"/>
     <item
-        android:id="@+id/action_about"
+        android:id="@+id/action_calibration"
         android:orderInCategory="2"
         android:showAsAction="never"
-        android:title="About"/>
+        android:title="Gesture Calibration"/>
 
 </menu>
