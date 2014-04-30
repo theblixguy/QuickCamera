@@ -47,6 +47,7 @@ public class TouchlessGestureListener extends Service {
 	boolean use_proximity;
 	boolean is_timer_running = false;
 	boolean proper_gesture = false;
+	boolean launch_from_lockscreen_only = false;
 	int vibration_intensity;
 	int up_how_many;
 	int down_how_many;
@@ -84,6 +85,7 @@ public class TouchlessGestureListener extends Service {
 			unregisterRotationVectorSensor();
 			unregisterProximitySensor();
 			unregisterReceiver(receiver);
+			unregisterReceiver(OnOffGestureRecognition);
 		} catch (Exception e) {}
 	}
 
@@ -94,6 +96,7 @@ public class TouchlessGestureListener extends Service {
 	 * 2> Verify sensor presence
 	 * 3> Register sensor interrupts
 	 * 4> Acquire service wakelock
+	 * 5> Register broadcast recievers
 	 * 
 	 */
 
@@ -103,6 +106,7 @@ public class TouchlessGestureListener extends Service {
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
 		use_proximity = settings.getBoolean("use_proximity", false);
+		launch_from_lockscreen_only = settings.getBoolean("launch_from_lockscreen_only", false);
 		vibration_intensity = settings.getInt("vibration_intensity", 150);
 		twist_back_z = settings.getFloat("twist_back_z", 0.6f);
 		twist_back_y = settings.getFloat("twist_back_y", 0.2f);
@@ -112,17 +116,28 @@ public class TouchlessGestureListener extends Service {
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 
-		registerRotationVectorSensor();
-		registerProximitySensor();
-
 		Log.i(TAG, "Acquiring partial wakelock for background service");
 		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
 		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
 		wakeLock.acquire();
 
-		IntentFilter filter = new IntentFilter();
-		filter.addAction("android.intent.action.PHONE_STATE");
-		registerReceiver(receiver, filter);
+		IntentFilter filter_phone_state = new IntentFilter();
+		filter_phone_state.addAction("android.intent.action.PHONE_STATE");
+		registerReceiver(receiver, filter_phone_state);
+		
+		IntentFilter filter_on_off = new IntentFilter();
+		filter_on_off.addAction(Intent.ACTION_SCREEN_ON);
+		filter_on_off.addAction(Intent.ACTION_SCREEN_OFF);
+		registerReceiver(OnOffGestureRecognition, filter_on_off);
+		
+		boolean is_screen_on_now = mgr.isScreenOn();
+		
+		if (!launch_from_lockscreen_only && is_screen_on_now) {
+		registerRotationVectorSensor();
+		}
+		
+		registerProximitySensor();
+		
 
 	}
 
@@ -465,6 +480,30 @@ public class TouchlessGestureListener extends Service {
 				}
 
 			}
+			
+			BroadcastReceiver OnOffGestureRecognition = new BroadcastReceiver() {
+
+		        @Override
+		        public void onReceive(Context context, Intent intent) {
+		                if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)){
+		                	Log.i(TAG, "Screen on detected");
+		                    if (launch_from_lockscreen_only) {
+		                    	unregisterRotationVectorSensor();
+		                    	Log.i(TAG, "Screen on detected: Unregistered sensors");
+		                    }
+		                }
+		                else if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
+		                	Log.i(TAG, "Screen off detected");
+		                	if (launch_from_lockscreen_only) {
+		                    	registerRotationVectorSensor();
+		                    	Log.i(TAG, "Screen off detected: Registered sensors");
+		                    }
+		                }
+
+		        }
+		    };
+			
+			/* Broadcast reciever for handling pause/resume gesture depending on call state */
 
 			private final BroadcastReceiver receiver = new BroadcastReceiver() {
 

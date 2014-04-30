@@ -13,6 +13,7 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Switch;
+import android.widget.Toast;
 
 public class DebugPrefActivity extends Activity {
 
@@ -21,6 +22,7 @@ public class DebugPrefActivity extends Activity {
 	private static final String TAG = "TouchlessCamera";
 	boolean start_service_bootup = false;
 	boolean use_proximity = false;
+	boolean launch_from_lockscreen_only = false;
 	int vibration_intensity = 150;
 
 	/* Entry point of our activity. Nothing too fancy, just read user preferences and update the fields */
@@ -33,10 +35,12 @@ public class DebugPrefActivity extends Activity {
 		EditText ed = (EditText) findViewById(R.id.editText1);
 		Switch proximitySwitch = (Switch)findViewById(R.id.switch1);
 		Switch bootupSwitch = (Switch)findViewById(R.id.switch2);
+		Switch screenOffSwitch = (Switch)findViewById(R.id.switch3);
 
 		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
 		start_service_bootup = settings.getBoolean("start_service_bootup", false);
+		launch_from_lockscreen_only = settings.getBoolean("launch_from_lockscreen_only", false);
 		use_proximity = settings.getBoolean("use_proximity", false);
 		vibration_intensity = settings.getInt("vibration_intensity", 150);
 
@@ -48,10 +52,17 @@ public class DebugPrefActivity extends Activity {
 		}
 		
 		if (start_service_bootup == true) {
-			proximitySwitch.setChecked(true);
+			bootupSwitch.setChecked(true);
 		}
 		else if (start_service_bootup == false){
-			proximitySwitch.setChecked(false);
+			bootupSwitch.setChecked(false);
+		}
+		
+		if (launch_from_lockscreen_only == true) {
+			screenOffSwitch.setChecked(true);
+		}
+		else if (launch_from_lockscreen_only == false){
+			screenOffSwitch.setChecked(false);
 		}
 
 		ed.setText(Integer.toString(vibration_intensity));
@@ -81,6 +92,19 @@ public class DebugPrefActivity extends Activity {
 				}
 			}
 		});
+		
+		screenOffSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				if (isChecked == true) {
+					Log.i(TAG, "Screen off only enabled");
+					launch_from_lockscreen_only = true;
+				}
+				else if (isChecked == false) {
+					Log.i(TAG, "Screen off only disabled");
+					launch_from_lockscreen_only = false;
+				}
+			}
+		});
 	}
 
 
@@ -93,9 +117,11 @@ public class DebugPrefActivity extends Activity {
 		SharedPreferences.Editor settings_editor = app_settings.edit();
 		settings_editor.putBoolean("start_service_bootup", start_service_bootup);
 		settings_editor.putBoolean("use_proximity", use_proximity);
+		settings_editor.putBoolean("launch_from_lockscreen_only", launch_from_lockscreen_only);
 		settings_editor.putInt("vibration_intensity", vibration_intensity);
 		Log.i(TAG, "Saving debug prefs");
 		settings_editor.commit();
+		Toast.makeText(getApplicationContext(), "Your preferences were saved!", Toast.LENGTH_SHORT).show();
 	}
 
 

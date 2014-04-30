@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ssrij.quickcamera"
-    android:versionCode="8"
+    android:versionCode="9"
     android:versionName="1.0" >
 
     <uses-sdk
@@ -17,6 +17,22 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+    
+    <uses-feature
+        android:name="android.hardware.sensor.accelerometer"
+        android:required="true" />
+    
+    <uses-feature
+        android:name="android.hardware.sensor.compass"
+        android:required="true" />
+    
+    <uses-feature
+        android:name="android.hardware.sensor.gyroscope"
+        android:required="true" />
+    
+    <uses-feature
+        android:name="android.hardware.sensor.proximity"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -26,6 +42,8 @@
         <receiver android:name=".BootCompletedIntentReceiver" >
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.SCREEN_ON"/>
+                <action android:name="android.intent.action.SCREEN_OFF"/>
             </intent-filter>
         </receiver>
 

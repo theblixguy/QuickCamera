@@ -14,6 +14,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -49,10 +50,9 @@ public class TwistCalibrationActivity extends Activity {
 	int down_how_many;
 	boolean is_timer_running = false;
 	boolean proper_gesture = false;
-
-	float twist_back_z = 0.6f;
-	float twist_back_y = 0.2f;
-	float twist_forward_y = 0.4f;
+	float twist_back_z;
+	float twist_back_y;
+	float twist_forward_y;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -109,21 +109,29 @@ public class TwistCalibrationActivity extends Activity {
 			}
 		});
 
-		DialogBld.setMessage("The calibration values you chose are:\n\nTwist Back (Z): " + twist_back_z + "\nTwist Back (Y): " + twist_back_y + "\nTwist Forward (Y): " + twist_forward_y + "\n\nSelect Run if you want to start with the calibration process. \nSelect Cancel if you want to cancel the calibration process");
+		DialogBld.setMessage("The calibration values you chose are:\n\nTwist Back (Z): " + twist_back_z + "\nTwist Back (Y): " + twist_back_y + "\nTwist Forward (Y): " + twist_forward_y + "\n\nSelect Run if you want to start with the calibration process. CALIBRATION PROCESS WILL END ONCE THE TWIST GESTURE IS DETECTED.\nSelect Cancel if you want to cancel the calibration process");
 		DialogBld.setTitle("Confirmation");
 		DialogBld.show();
 	}
 
 	public void saveCalibrationValues(View v) {
+		
+		int back_z = seekbar_twist_back_z.getProgress();
+		int back_y = seekbar_twist_back_y.getProgress();
+		int forward_y = seekbar_twist_forward_y.getProgress();
+
+		twist_back_z = (float)back_z/10;
+		twist_back_y = (float)back_y/10;
+		twist_forward_y = (float)forward_y/10;
+		
 		SharedPreferences app_settings = getSharedPreferences("app_prefs", 0);
-		SharedPreferences.Editor settings_editor = app_settings.edit();
+		Editor settings_editor = app_settings.edit();
 		settings_editor.putFloat("twist_back_z", twist_back_z);
 		settings_editor.putFloat("twist_back_y", twist_back_y);
 		settings_editor.putFloat("twist_forward_y", twist_forward_y);
 		Log.i(TAG, "Saving calibration values");
 		settings_editor.commit();
 		Toast.makeText(getApplicationContext(), "Calibration values were saved!", Toast.LENGTH_SHORT).show();
-		finish();
 	}
 
 	public void registerRotationVectorListener() {
@@ -252,7 +260,7 @@ public class TwistCalibrationActivity extends Activity {
 				});
 
 
-				DialogBld.setMessage("Twist gesture was detected! If you are happy with this sensitivity then you can save the sensitivity now!");
+				DialogBld.setMessage("Twist gesture was detected! If you are happy with this sensitivity/accuracy then you can save the calibration values!");
 				DialogBld.setTitle("Gesture detected");
 				DialogBld.show();
 
