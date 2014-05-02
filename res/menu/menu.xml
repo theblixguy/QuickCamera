@@ -4,7 +4,7 @@
         android:id="@+id/action_settings"
         android:orderInCategory="1"
         android:showAsAction="never"
-        android:title="Settings (Debug)"/>
+        android:title="Settings"/>
     <item
         android:id="@+id/action_calibration"
         android:orderInCategory="2"

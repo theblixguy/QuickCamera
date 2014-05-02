@@ -5,6 +5,14 @@
     android:background="@drawable/background"
     android:orientation="vertical" >
     
+    <ScrollView
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+    
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="909dp" >
+    
     <TextView
         android:id="@+id/textView4"
         android:layout_width="wrap_content"
@@ -116,7 +124,7 @@
         android:layout_below="@+id/textView4"
         android:text="Prevent accidental camera launch in pocket"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="#000000"
+        android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:textStyle="italic" />
 
@@ -128,7 +136,7 @@
         android:layout_centerHorizontal="true"
         android:text="Run service automatically after rebooting"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="#000000"
+        android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:textStyle="italic" />
 
@@ -140,16 +148,9 @@
         android:layout_below="@+id/TextView02"
         android:text="Recognize gesture only when screen is off"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="#000000"
+        android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:textStyle="italic" />
-
-    <Switch
-        android:id="@+id/switch3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/switch2"
-        android:layout_below="@+id/TextView03" />
 
     <Switch
         android:id="@+id/switch1"
@@ -158,5 +159,120 @@
         android:layout_below="@+id/textView5"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="11dp" />
+
+    <TextView
+        android:id="@+id/TextView04"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/switch3"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="Night mode"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/TextView05"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/textView5"
+        android:layout_alignRight="@+id/TextView03"
+        android:layout_below="@+id/TextView04"
+        android:gravity="center"
+        android:text="Automatically turn off gesture recognition when I goto sleep and turn it on when I wake up"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="italic" />
+
+    <Switch
+        android:id="@+id/switch4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/TextView02"
+        android:layout_below="@+id/TextView05"
+        android:layout_marginTop="11dp" />
+
+    <Switch
+        android:id="@+id/switch3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/switch2"
+        android:layout_below="@+id/TextView03"
+        android:layout_marginTop="10dp" />
+
+    <Button
+        android:id="@+id/button_set_time_wake"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/TextView07"
+        android:layout_alignRight="@+id/TextView07"
+        android:layout_below="@+id/switch4"
+        android:layout_marginTop="23dp"
+        android:background="@drawable/btn_flat_red"
+        android:fontFamily="sans-serif-condensed"
+        android:onClick="setWakeTime"
+        android:padding="10dp"
+        android:paddingBottom="13dp"
+        android:text="Set Wake Time (AM)"
+        android:textColor="#ffffff"
+        android:textSize="20sp" />
+
+    <Button
+        android:id="@+id/button_set_time_sleep"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/button_set_time_wake"
+        android:layout_alignRight="@+id/button_set_time_wake"
+        android:layout_below="@+id/button_set_time_wake"
+        android:layout_marginTop="23dp"
+        android:background="@drawable/btn_flat_red"
+        android:fontFamily="sans-serif-condensed"
+        android:onClick="setSleepTime"
+        android:padding="10dp"
+        android:paddingBottom="13dp"
+        android:text="Set Sleep Time (PM)"
+        android:textColor="#ffffff"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/TextView06"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/button_set_time_sleep"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="21dp"
+        android:text="Enable QuickCapture"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/TextView07"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/TextView03"
+        android:layout_alignRight="@+id/TextView01"
+        android:layout_below="@+id/TextView06"
+        android:gravity="center"
+        android:text="Use the inbuilt QuickCapture camera app for faster camera access, even from lockscreen (beta)"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="italic" />
+
+    <Switch
+        android:id="@+id/switch5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/switch4"
+        android:layout_below="@+id/TextView07"
+        android:layout_marginTop="22dp"
+        android:enabled="false" />
+    
+    </RelativeLayout>
+    
+    </ScrollView>
 
 </RelativeLayout>

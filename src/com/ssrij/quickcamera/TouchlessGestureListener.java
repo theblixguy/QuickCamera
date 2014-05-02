@@ -1,5 +1,8 @@
 package com.ssrij.quickcamera;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -18,7 +21,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
@@ -34,11 +36,19 @@ public class TouchlessGestureListener extends Service {
 	/* Variables we require */
 
 	private static final String TAG = "TouchlessCamera";
+	SharedPreferences settings;
 	WakeLock wakeLock;
 	PowerManager mgr;
+	KeyguardManager kgMgr;
 	SensorManager sensorManager;
 	Sensor rotationVectorSensor;
 	Sensor proximitySensor;
+	String sleep_hr;
+	String sleep_min;
+	String wake_hr;
+	String wake_min;
+	String sleep_time;
+	String wake_time;
 	boolean rotationVectorPresent;
 	boolean proximityPresent;
 	boolean in_pocket = false;
@@ -48,6 +58,10 @@ public class TouchlessGestureListener extends Service {
 	boolean is_timer_running = false;
 	boolean proper_gesture = false;
 	boolean launch_from_lockscreen_only = false;
+	boolean auto_sleep_wake = false;
+	boolean time_to_sleep = false;
+	boolean time_to_wake = false;
+	boolean use_qc_camera = false;
 	int vibration_intensity;
 	int up_how_many;
 	int down_how_many;
@@ -86,6 +100,8 @@ public class TouchlessGestureListener extends Service {
 			unregisterProximitySensor();
 			unregisterReceiver(receiver);
 			unregisterReceiver(OnOffGestureRecognition);
+			unregisterReceiver(TimeChangeListener);
+			wakeLock.release();
 		} catch (Exception e) {}
 	}
 
@@ -97,25 +113,38 @@ public class TouchlessGestureListener extends Service {
 	 * 3> Register sensor interrupts
 	 * 4> Acquire service wakelock
 	 * 5> Register broadcast recievers
+	 * 6> Stop sensors if current system time is >= sleep time AND <= wake time
 	 * 
 	 */
 
 	@Override
 	public void onCreate() {
 
-		SharedPreferences settings;
 		settings = getSharedPreferences("app_prefs", 0);
 		use_proximity = settings.getBoolean("use_proximity", false);
 		launch_from_lockscreen_only = settings.getBoolean("launch_from_lockscreen_only", false);
+		auto_sleep_wake = settings.getBoolean("auto_sleep_wake", false);
 		vibration_intensity = settings.getInt("vibration_intensity", 150);
 		twist_back_z = settings.getFloat("twist_back_z", 0.6f);
 		twist_back_y = settings.getFloat("twist_back_y", 0.2f);
 		twist_forward_y = settings.getFloat("twist_forward_y", 0.4f);
-		
+		sleep_hr = settings.getString("auto_sleep_hr", "9");
+		sleep_min = settings.getString("auto_sleep_min", "01");
+		wake_hr = settings.getString("auto_wake_hr", "9");
+		wake_min = settings.getString("auto_wake_min", "01");
+		use_qc_camera = settings.getBoolean("use_qc_camera", false);
+
+		sleep_time = sleep_hr.concat(":").concat(sleep_min);
+		wake_time = wake_hr.concat(":").concat(wake_min);
+
+		Log.i(TAG, "Auto wake/sleep: " + auto_sleep_wake);
+		Log.i(TAG, "Auto wake time: " + wake_time);
+		Log.i(TAG, "Auto sleep time: " + sleep_time);
+
 		Log.i(TAG, "Current gesture values -> Twist Back Z: " + twist_back_z + " Twist Back Y: " + twist_back_y + " Twist Forward Y: " + twist_forward_y);
 
 		sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
-
+		kgMgr =( KeyguardManager)this.getSystemService(Context.KEYGUARD_SERVICE);
 		Log.i(TAG, "Acquiring partial wakelock for background service");
 		mgr = (PowerManager)getSystemService(Context.POWER_SERVICE);
 		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TouchlessCameraServiceWakeLock");
@@ -124,21 +153,45 @@ public class TouchlessGestureListener extends Service {
 		IntentFilter filter_phone_state = new IntentFilter();
 		filter_phone_state.addAction("android.intent.action.PHONE_STATE");
 		registerReceiver(receiver, filter_phone_state);
-		
+
 		IntentFilter filter_on_off = new IntentFilter();
 		filter_on_off.addAction(Intent.ACTION_SCREEN_ON);
 		filter_on_off.addAction(Intent.ACTION_SCREEN_OFF);
 		registerReceiver(OnOffGestureRecognition, filter_on_off);
-		
-		boolean is_screen_on_now = mgr.isScreenOn();
-		
-		if (!launch_from_lockscreen_only && is_screen_on_now) {
-		registerRotationVectorSensor();
-		}
-		
-		registerProximitySensor();
-		
 
+		IntentFilter filter_time_change = new IntentFilter();
+		filter_time_change.addAction(Intent.ACTION_TIME_TICK);
+		registerReceiver(TimeChangeListener, filter_time_change);
+
+		boolean is_screen_on_now = mgr.isScreenOn();
+
+		if (!launch_from_lockscreen_only && is_screen_on_now) {
+			registerRotationVectorSensor();
+		}
+
+		registerProximitySensor();
+
+		DateFormat current_hr = new SimpleDateFormat("HH");
+		String current_hr_str = current_hr.format(Calendar.getInstance().getTime());
+		DateFormat current_min = new SimpleDateFormat("mm");
+		String current_min_str = current_min.format(Calendar.getInstance().getTime());
+
+		int current_hr_int = Integer.parseInt(current_hr_str);
+		int current_min_int = Integer.parseInt(current_min_str);
+		int sleep_hr_int = Integer.parseInt(sleep_hr);
+		int sleep_min_int = Integer.parseInt(sleep_min);
+		int wake_hr_int = Integer.parseInt(wake_hr);
+		int wake_min_int = Integer.parseInt(wake_min);
+
+		if (current_hr_int >= sleep_hr_int && current_min_int >= sleep_min_int){
+			if (current_hr_int <= wake_hr_int && current_min_int <= wake_min_int) {
+				Log.i(TAG, "Service was restarted but it is sleep time right now, so stopping sensor listeners");
+				unregisterRotationVectorSensor();
+				unregisterProximitySensor();
+				time_to_sleep = true;
+				time_to_wake = false;
+			}
+		}
 	}
 
 	/* Function to register rotation vector listener. If no rotation vector is
@@ -206,7 +259,7 @@ public class TouchlessGestureListener extends Service {
 
 	public void unregisterProximitySensor() {
 
-		if (use_proximity&& proximityPresent) {
+		if (use_proximity && proximityPresent) {
 			Log.i(TAG, "Unregistering proximity listener");
 			try {
 				sensorManager.unregisterListener(ProximityEventListener);
@@ -224,6 +277,7 @@ public class TouchlessGestureListener extends Service {
 	 * There are further checks too: 
 	 * 1> Checks whether the user is in a call or not
 	 * 2> Checks whether phone is locked or unlocked (incase it's locked it launches a secure version of the camera)
+	 * 3> Checks whether QC camera app is enabled in settings or not
 	 * 
 	 * It also turns the screen on, in case it's off. If all requirements are met then the camera app 
 	 * is launched and the state of gesture variables are reset, else nothing happens.
@@ -232,50 +286,55 @@ public class TouchlessGestureListener extends Service {
 
 	public void launchCamera() {
 
+		long total_time;
+		long start_time = System.currentTimeMillis();
+
 		Log.i(TAG, "Validating camera launch requirements");
 
 		if (in_pocket == false) {
 			Log.i(TAG, "1: Phone not in pocket, moving forward");
 
 			if (up_how_many == 2 && down_how_many == 2 && proper_gesture == true) {
-				Log.i(TAG, "2: Gesture requirements met, moving forward");
-
-				Log.i(TAG, "Veryfing if screen is already on or not");
-				PowerManager pwrmgr = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
-				KeyguardManager kgMgr = (KeyguardManager)this.getSystemService(Context.KEYGUARD_SERVICE);
-				boolean isScreenOn = pwrmgr.isScreenOn();
+				Log.i(TAG, "2: Gesture requirements met, moving forward. Veryfing if screen is already on or not");
+				boolean isScreenOn = mgr.isScreenOn();
 
 				if (isScreenOn == false) {
-					turnOnScreen(this);	
+					turnOnScreen();	
 				}
 
 				Log.i(TAG, "All requirements met");
 
 				try
 				{
-					//Intent test_intent = new Intent(this, QuickCameraPreview.class);
-					//test_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					Intent it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-					Intent secure_it = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE);
-					it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-					secure_it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+					Intent qcIntent = new Intent(this, QuickCameraPreview.class);
+					Intent camera_intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+					Intent secure_camera_intent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE);
+
+					qcIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+					camera_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+					secure_camera_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+
 					boolean is_camera_already_running = isCameraRunning();
-					boolean is_user_in_call = isUserInCall();
 					boolean lockscreen = kgMgr.inKeyguardRestrictedInputMode();
 
-					if (is_camera_already_running == false && is_user_in_call == false && lockscreen == false) {
-						if (null != it) {
-							Log.i(TAG, "Starting camera app");
-							vibratePhone(vibration_intensity);
-							this.startActivity(it);
+					if (is_camera_already_running == false && lockscreen == false) {
+
+						if (use_qc_camera == true) {
+							this.startActivity(qcIntent);
 						}
+						else {
+							this.startActivity(camera_intent);
+						}
+
+						Log.i(TAG, "Starting camera app");
+						vibratePhone(vibration_intensity);
+						total_time = System.currentTimeMillis() - start_time;
+						Log.i(TAG, "Total time launchCamera() function (ms): " + total_time);
 					}
-					else if (is_camera_already_running == false && is_user_in_call == false && lockscreen == true) {
-						if (null != secure_it) {
-							Log.i(TAG, "Starting camera app in secure mode");
-							vibratePhone(vibration_intensity);
-							this.startActivity(secure_it);
-						}
+					else if (is_camera_already_running == false && lockscreen == true) {
+						Log.i(TAG, "Starting camera app in secure mode");
+						vibratePhone(vibration_intensity);
+						this.startActivity(secure_camera_intent);
 					}
 				}
 
@@ -288,11 +347,15 @@ public class TouchlessGestureListener extends Service {
 			}
 			else {
 				Log.w(TAG, "Camera launch requirements not met (1/2)");
+				start_time = 0;
+				total_time = 0;
 			}
 
 		} else {
 
 			Log.w(TAG, "Camera launch requirements not met (2/2)");
+			start_time = 0;
+			total_time = 0;
 		}
 	}
 
@@ -341,20 +404,6 @@ public class TouchlessGestureListener extends Service {
 		return false;
 	}
 
-	/* Function to check whether the user is in call or not, in order to prevent the camera from
-	 * accidentally launching during a call.
-	 */
-
-	public boolean isUserInCall() {
-		AudioManager manager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
-		if (manager.getMode()==AudioManager.MODE_IN_CALL){
-			return true;
-		}
-		else{
-			return false;
-		}
-	}
-
 	/* 
 	 * Function to turn on the display of the device. Simply launching camera when the phone is 
 	 * turned off won't turn on the screen with it in most cases, so we have to manually do it. 
@@ -362,20 +411,17 @@ public class TouchlessGestureListener extends Service {
 	 * 
 	 */
 
-	public void turnOnScreen(Context context) {
+	public void turnOnScreen() {
 		Log.i(TAG, "Acquiring wakelock to turn on the screen");
-		PowerManager pm = (PowerManager) context
-				.getSystemService(Context.POWER_SERVICE);
-		PowerManager.WakeLock wl = pm.newWakeLock(
+		WakeLock wl = mgr.newWakeLock(
 				PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK
 				| PowerManager.ACQUIRE_CAUSES_WAKEUP, "TouchlessCameraWakeLock");
 		wl.acquire(5000);
 	}
 
 	/* 
-	 * We can use the rotation vector virtual sensor(which uses both sensors simultaneously to give us a 
+	 * We use the rotation vector virtual sensor (which uses three sensors simultaneously to give us a 
 	 * rotation vector) so that we dont have to perform certain calculations ourselves and get much higher accuracy.
-	 * 
 	 * We also use a timer to prevent accidental gesture activations, so the gesture activates only if you perform the
 	 * twists within 2 seconds, else it gets discarded
 	 * 
@@ -421,10 +467,8 @@ public class TouchlessGestureListener extends Service {
 						is_timer_running = true;
 						proper_gesture = true;
 					}
-
 				}
 			}
-
 			launchCamera();
 		}
 
@@ -467,6 +511,43 @@ public class TouchlessGestureListener extends Service {
 				}
 			}};
 
+			/* Broadcast receiver for auto sleep/wake */
+
+			private final BroadcastReceiver TimeChangeListener = new BroadcastReceiver() {
+				@Override
+				public void onReceive(Context context, Intent intent) {
+					final String action = intent.getAction();
+
+					if (action.equals(Intent.ACTION_TIME_TICK)) {
+
+						if (auto_sleep_wake == true) {
+
+							DateFormat df = new SimpleDateFormat("HH:mm");
+							String time = df.format(Calendar.getInstance().getTime());
+
+							sleep_time = sleep_hr.concat(":").concat(sleep_min);
+							wake_time = wake_hr.concat(":").concat(wake_min);
+
+							if (time.equals(sleep_time)) {
+								Log.i(TAG, "Time to sleep, stopping sensor listeners");
+								unregisterRotationVectorSensor();
+								unregisterProximitySensor();
+								time_to_sleep = true;
+								time_to_wake = false;
+							}
+
+							if (time.equals(wake_time)) {
+								Log.i(TAG, "Time to wake up, starting sensor listeners");
+								registerRotationVectorSensor();
+								registerProximitySensor();
+								time_to_wake = true;
+								time_to_sleep = false;
+							}
+						}
+					}
+				}
+			};
+
 			/* Class that handles gesture timing */
 
 			class GestureDetectionTimerTask extends TimerTask {
@@ -480,30 +561,35 @@ public class TouchlessGestureListener extends Service {
 				}
 
 			}
-			
+
+			/* Broadcast receiver for screen on/off gesture */
+
 			BroadcastReceiver OnOffGestureRecognition = new BroadcastReceiver() {
 
-		        @Override
-		        public void onReceive(Context context, Intent intent) {
-		                if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)){
-		                	Log.i(TAG, "Screen on detected");
-		                    if (launch_from_lockscreen_only) {
-		                    	unregisterRotationVectorSensor();
-		                    	Log.i(TAG, "Screen on detected: Unregistered sensors");
-		                    }
-		                }
-		                else if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
-		                	Log.i(TAG, "Screen off detected");
-		                	if (launch_from_lockscreen_only) {
-		                    	registerRotationVectorSensor();
-		                    	Log.i(TAG, "Screen off detected: Registered sensors");
-		                    }
-		                }
+				@Override
+				public void onReceive(Context context, Intent intent) {
+					if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)){
+						Log.i(TAG, "Screen on detected");
+						if (launch_from_lockscreen_only) {
+							if (!time_to_sleep) {
+								unregisterRotationVectorSensor();
+								Log.i(TAG, "Screen on detected: Unregistering sensors");
+							}
+						}
+					}
+					else if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
+						Log.i(TAG, "Screen off detected");
+						if (launch_from_lockscreen_only) {
+							if (!time_to_sleep) {
+								registerRotationVectorSensor();
+								Log.i(TAG, "Screen off detected: Registering sensors");
+							}
+						}
+					}
+				}
+			};
 
-		        }
-		    };
-			
-			/* Broadcast reciever for handling pause/resume gesture depending on call state */
+			/* Broadcast receiver for handling pause/resume gesture depending on call state */
 
 			private final BroadcastReceiver receiver = new BroadcastReceiver() {
 
@@ -533,24 +619,36 @@ public class TouchlessGestureListener extends Service {
 						switch(state){  
 						case TelephonyManager.CALL_STATE_RINGING:
 							previous_call_state = state;
-							Log.i(TAG, "Phone ringing, stopping accelerometer");
-							unregisterRotationVectorSensor();
+							if (!time_to_sleep) {
+								Log.i(TAG, "Phone ringing, stopping sensors");
+								unregisterRotationVectorSensor();
+								unregisterProximitySensor();
+							}
 							break;  
 						case TelephonyManager.CALL_STATE_OFFHOOK:  
 							previous_call_state = state;
-							Log.i(TAG, "Phone offhook, stopping accelerometer");
-							unregisterRotationVectorSensor();
+							if (!time_to_sleep) {
+								Log.i(TAG, "Phone offhook, stopping sensors");
+								unregisterRotationVectorSensor();
+								unregisterProximitySensor();
+							}
 							break;  
 						case TelephonyManager.CALL_STATE_IDLE:   
 							if((previous_call_state == TelephonyManager.CALL_STATE_OFFHOOK)){  
-								previous_call_state = state;  
-								Log.i(TAG, "Phone idle (offhook before), starting accelerometer");
-								registerRotationVectorSensor();
+								previous_call_state = state;
+								if (!time_to_sleep) {
+									Log.i(TAG, "Phone idle (offhook before), starting sensors");
+									registerRotationVectorSensor();
+									registerProximitySensor();
+								}
 							}  
 							if((previous_call_state == TelephonyManager.CALL_STATE_RINGING)){  
-								previous_call_state = state; 
-								Log.i(TAG, "Phone idle (ringing before), starting accelerometer");
-								registerRotationVectorSensor();  
+								previous_call_state = state;
+								if (!time_to_sleep) {
+									Log.i(TAG, "Phone idle (ringing before), starting sensors");
+									registerRotationVectorSensor();  
+									registerProximitySensor();
+								}
 							}  
 							break;  
 

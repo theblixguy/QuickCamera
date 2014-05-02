@@ -1,25 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent" >
-
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="horizontal" >
+    
     <RelativeLayout
-        android:id="@+id/cameraPreview"
-        android:layout_width="match_parent"
-        android:layout_height="400dp"
-        android:layout_above="@+id/button1"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true" >
-
+        android:id="@+id/camera_preview"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="1" >
     </RelativeLayout>
 
-    <Button
-        android:id="@+id/button1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <ImageButton
+        android:id="@+id/imageButton2"
+        style="?android:attr/selectableItemBackground"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginLeft="11dp"
+        android:layout_marginTop="11dp"
+        android:alpha="0.7"
+        android:background="@android:color/transparent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/camera_settings_icon" />
+
+    <ImageButton
+        android:id="@+id/imageButton1"
+        style="?android:attr/selectableItemBackground"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
         android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="15dp"
-        android:text="Capture" />
+        android:layout_alignParentLeft="true"
+        android:layout_marginBottom="16dp"
+        android:layout_marginLeft="18dp"
+        android:background="@android:color/transparent"
+        android:scaleType="centerCrop" />
 
 </RelativeLayout>

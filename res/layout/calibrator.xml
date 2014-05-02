@@ -2,6 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/background"
     android:orientation="vertical" >
 
     <TextView
@@ -13,7 +14,8 @@
         android:layout_marginTop="16dp"
         android:text="Twist calibration"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="@android:color/holo_blue_dark" />
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/textView2"
@@ -24,7 +26,8 @@
         android:layout_marginLeft="19dp"
         android:layout_marginTop="26dp"
         android:text="Twist Back sensitivity (Z axis)"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF" />
 
     <TextView
         android:id="@+id/textView3"
@@ -34,7 +37,8 @@
         android:layout_below="@+id/seekBar1"
         android:layout_marginTop="14dp"
         android:text="Twist Back sensitivity (Y axis)"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF" />
 
     <TextView
         android:id="@+id/textView4"
@@ -44,7 +48,8 @@
         android:layout_below="@+id/seekBar2"
         android:layout_marginTop="18dp"
         android:text="Twist Forward sensitivity (Y axis)"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#FFFFFF" />
 
     <SeekBar
         android:id="@+id/seekBar3"
@@ -77,23 +82,41 @@
         android:progress="6" />
 
     <Button
+        android:id="@+id/button1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/seekBar3"
+        android:layout_below="@+id/seekBar3"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/btn_flat_blue"
+        android:onClick="executeCalibrationValues"
+        android:text="Try"
+        android:textColor="#FFFFFF" />
+
+    <Button
         android:id="@+id/button2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBaseline="@+id/button1"
         android:layout_alignBottom="@+id/button1"
-        android:layout_alignRight="@+id/textView1"
+        android:layout_marginLeft="13dp"
+        android:layout_toRightOf="@+id/button1"
+        android:background="@drawable/btn_flat_blue"
         android:onClick="saveCalibrationValues"
-        android:text="Save" />
+        android:text="Save"
+        android:textColor="#FFFFFF" />
 
     <Button
-        android:id="@+id/button1"
+        android:id="@+id/button3"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/textView1"
-        android:layout_below="@+id/seekBar3"
-        android:layout_marginTop="17dp"
-        android:onClick="executeCalibrationValues"
-        android:text="Try" />
+        android:layout_alignBaseline="@+id/button2"
+        android:layout_alignBottom="@+id/button2"
+        android:layout_marginLeft="11dp"
+        android:layout_toRightOf="@+id/button2"
+        android:background="@drawable/btn_flat_blue"
+        android:onClick="showHelpDialog"
+        android:text="Help"
+        android:textColor="#FFFFFF" />
     
 </RelativeLayout>

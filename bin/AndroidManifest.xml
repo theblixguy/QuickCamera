@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ssrij.quickcamera"
-    android:versionCode="9"
+    android:versionCode="10"
     android:versionName="1.0" >
 
     <uses-sdk
@@ -13,23 +13,20 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
-    
     <uses-feature
         android:name="android.hardware.sensor.accelerometer"
         android:required="true" />
-    
     <uses-feature
         android:name="android.hardware.sensor.compass"
         android:required="true" />
-    
     <uses-feature
         android:name="android.hardware.sensor.gyroscope"
         android:required="true" />
-    
     <uses-feature
         android:name="android.hardware.sensor.proximity"
         android:required="true" />
@@ -42,8 +39,8 @@
         <receiver android:name=".BootCompletedIntentReceiver" >
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.SCREEN_ON"/>
-                <action android:name="android.intent.action.SCREEN_OFF"/>
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <action android:name="android.intent.action.SCREEN_OFF" />
             </intent-filter>
         </receiver>
 
@@ -68,7 +65,8 @@
             android:configChanges="orientation|keyboardHidden"
             android:label="@string/app_name"
             android:screenOrientation="portrait"
-            android:theme="@android:style/Theme.Holo.Light.NoActionBar" >
+            android:theme="@android:style/Theme.Holo.Light.NoActionBar"
+            android:windowSoftInputMode="stateHidden" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
@@ -88,6 +86,16 @@
             android:configChanges="orientation|keyboardHidden"
             android:label="@string/app_name"
             android:screenOrientation="portrait" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.ssrij.quickcamera.QuickCameraPreview"
+            android:configChanges="orientation|keyboardHidden"
+            android:label="@string/app_name"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Holo.Light.NoActionBar.Fullscreen" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>

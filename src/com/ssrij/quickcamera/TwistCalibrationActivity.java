@@ -4,33 +4,25 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import com.ssrij.quickcamera.TouchlessGestureListener.GestureDetectionTimerTask;
-
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.KeyguardManager;
-import android.content.ActivityNotFoundException;
-import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.PowerManager;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Toast;
 
 public class TwistCalibrationActivity extends Activity {
+	
+	/* Variables we need */
 
 	private static final String TAG = "TouchlessCamera";
 	SensorManager sensorManager;
@@ -53,6 +45,8 @@ public class TwistCalibrationActivity extends Activity {
 	float twist_back_z;
 	float twist_back_y;
 	float twist_forward_y;
+	
+	/* Entry point, nothing too fancy, just read the calibration values and update the seekbars */
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +73,8 @@ public class TwistCalibrationActivity extends Activity {
 		seekbar_twist_forward_y.setProgress(Math.round(twist_forward_y * 10));
 
 	}
-
+	
+	/* Execute gesture recognition with user-selected calibration values for trying purposes */
 
 	public void executeCalibrationValues(View v) {
 
@@ -90,7 +85,7 @@ public class TwistCalibrationActivity extends Activity {
 		twist_back_z = (float)back_z/10;
 		twist_back_y = (float)back_y/10;
 		twist_forward_y = (float)forward_y/10;
-		
+
 		AlertDialog.Builder DialogBld = new AlertDialog.Builder(this);
 		DialogBld.setPositiveButton("Cancel", new DialogInterface.OnClickListener() {
 
@@ -109,13 +104,15 @@ public class TwistCalibrationActivity extends Activity {
 			}
 		});
 
-		DialogBld.setMessage("The calibration values you chose are:\n\nTwist Back (Z): " + twist_back_z + "\nTwist Back (Y): " + twist_back_y + "\nTwist Forward (Y): " + twist_forward_y + "\n\nSelect Run if you want to start with the calibration process. CALIBRATION PROCESS WILL END ONCE THE TWIST GESTURE IS DETECTED.\nSelect Cancel if you want to cancel the calibration process");
+		DialogBld.setMessage("The calibration values you chose are:\n\nTwist Back (Z): " + twist_back_z + "\nTwist Back (Y): " + twist_back_y + "\nTwist Forward (Y): " + twist_forward_y + "\n\nSelect Run if you want to start with the calibration process. CALIBRATION PROCESS WILL END ONCE THE TWIST GESTURE IS DETECTED. DO NOT PRESS THE BACK BUTTON\nSelect Cancel if you want to cancel the calibration process right now");
 		DialogBld.setTitle("Confirmation");
 		DialogBld.show();
 	}
+	
+	/* Save calibration values to preferences */
 
 	public void saveCalibrationValues(View v) {
-		
+
 		int back_z = seekbar_twist_back_z.getProgress();
 		int back_y = seekbar_twist_back_y.getProgress();
 		int forward_y = seekbar_twist_forward_y.getProgress();
@@ -123,7 +120,7 @@ public class TwistCalibrationActivity extends Activity {
 		twist_back_z = (float)back_z/10;
 		twist_back_y = (float)back_y/10;
 		twist_forward_y = (float)forward_y/10;
-		
+
 		SharedPreferences app_settings = getSharedPreferences("app_prefs", 0);
 		Editor settings_editor = app_settings.edit();
 		settings_editor.putFloat("twist_back_z", twist_back_z);
@@ -133,6 +130,24 @@ public class TwistCalibrationActivity extends Activity {
 		settings_editor.commit();
 		Toast.makeText(getApplicationContext(), "Calibration values were saved!", Toast.LENGTH_SHORT).show();
 	}
+	
+	/* Show help dialog to user in order to tell him about what the sensitivity values correspond to */
+
+	public void showHelpDialog(View v) {
+		AlertDialog.Builder DialogBld = new AlertDialog.Builder(this);
+		DialogBld.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+
+			public void onClick(DialogInterface dialog, int which) {
+				dialog.cancel();
+			}
+		});
+
+		DialogBld.setMessage("What do the values mean:\n\nTwist back sensitivity (Z axis): Controls the angle at which you have to keep the phone in your hand (vertically) before twisting the phone.\n\nTwist back sensitivity (Y axis): Controls how much you have to twist the phone from front to back.\n\nTwist forward sensitivity (Y axis): Controls how much you have to twist the phone from back to front.");
+		DialogBld.setTitle("Help");
+		DialogBld.show();
+	}
+	
+	/* Function to register rotation vector sensor listener */
 
 	public void registerRotationVectorListener() {
 		List<Sensor> sensorList = sensorManager.getSensorList(Sensor.TYPE_ROTATION_VECTOR);
@@ -152,6 +167,8 @@ public class TwistCalibrationActivity extends Activity {
 			is_sensor_registered = true;
 		}
 	}
+	
+	/* Function to unregister rotation vector sensor listener */
 
 	public void unregisterRotationVectorListener() {
 		if (is_sensor_registered && rotationVectorPresent) {
@@ -163,6 +180,14 @@ public class TwistCalibrationActivity extends Activity {
 			}
 		}
 	}
+	
+	/* 
+	 * We use the rotation vector virtual sensor (which uses three sensors simultaneously to give us a 
+	 * rotation vector) so that we dont have to perform certain calculations ourselves and get much higher accuracy.
+	 * We also use a timer to prevent accidental gesture activations, so the gesture activates only if you perform the
+	 * twists within 2 seconds, else it gets discarded
+	 * 
+	 */
 
 	SensorEventListener RotationVectorEventListener = new SensorEventListener(){
 
@@ -208,7 +233,7 @@ public class TwistCalibrationActivity extends Activity {
 				}
 			}
 
-			launchCamera();
+			validateGesture();
 		}
 
 		@Override
@@ -242,8 +267,10 @@ public class TwistCalibrationActivity extends Activity {
 			was_up = true;
 			was_down = false;
 		}
+		
+		/* Validate the gesture that was performed, notify user if valid gesture */
 
-		public void launchCamera() {
+		public void validateGesture() {
 
 			if (up_how_many == 2 && down_how_many == 2 && proper_gesture == true) {
 				unregisterRotationVectorListener();

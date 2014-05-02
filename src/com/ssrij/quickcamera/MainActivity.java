@@ -19,7 +19,6 @@ public class MainActivity extends Activity {
 	/* Variables we require */
 
 	private static final String TAG = "TouchlessCamera";
-	int voltimes = 0;
 	boolean first_run;
 
 	/* Entry point of our activity */
@@ -37,6 +36,8 @@ public class MainActivity extends Activity {
 			startActivity(new Intent(this, TutorialActivity.class));
 		}
 	}
+	
+	/* Temporary fix for app not going to background on hitting the back button */
 
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) 
@@ -44,9 +45,7 @@ public class MainActivity extends Activity {
 		switch(keyCode)
 		{
 		case KeyEvent.KEYCODE_BACK:
-
 			moveTaskToBack(true);
-
 			return true;
 		}
 		return false;
@@ -70,8 +69,7 @@ public class MainActivity extends Activity {
 
 		case R.id.action_settings:
 			startActivity(new Intent(this, DebugPrefActivity.class));
-			Log.i(TAG, "Debug prefs accessed");
-			Toast.makeText(getApplicationContext(), "For debugging only", Toast.LENGTH_SHORT).show(); 
+			Log.i(TAG, "Preferences accessed");
 			return true;
 
 		case R.id.action_calibration:
@@ -118,9 +116,14 @@ public class MainActivity extends Activity {
 	/* Stop the gesture listener service */
 
 	public void StopGestureService(View v) {
+		boolean is_service_running = isServiceAlreadyRunning();
+		if (is_service_running) {
 		stopService(new Intent(this, TouchlessGestureListener.class));
 		Log.i(TAG, "Service stopped");
 		Toast.makeText(getApplicationContext(), "Service stopped! You can now close this app", Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(getApplicationContext(), "Service is already not running.", Toast.LENGTH_SHORT).show();
+		}
 	}
 
 
